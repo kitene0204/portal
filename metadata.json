@@ -1,0 +1,6 @@
+{
+  "name": "Vibe App Coding Portal",
+  "description": "학교와 개인 프로젝트로 만든 바이브 앱들을 한눈에 보고 관리할 수 있는 전문적인 코딩 포털",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
