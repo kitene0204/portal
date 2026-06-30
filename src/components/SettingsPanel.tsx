@@ -66,6 +66,8 @@ export default function SettingsPanel({
   const [portalTitle, setPortalTitle] = useState(config.portalTitle);
   const [layoutId, setLayoutId] = useState(config.layoutId);
   const [themeId, setThemeId] = useState(config.themeId);
+  const [schoolCategoryName, setSchoolCategoryName] = useState(config.schoolCategoryName || '학교 프로젝트');
+  const [personalCategoryName, setPersonalCategoryName] = useState(config.personalCategoryName || '개인 프로젝트');
 
   // App Editor States
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
@@ -80,26 +82,74 @@ export default function SettingsPanel({
   // Save General settings
   const handleSaveGeneral = () => {
     onSaveConfig({
+      ...config,
       portalTitle,
       layoutId,
-      themeId
+      themeId,
+      schoolCategoryName,
+      personalCategoryName
     });
   };
 
   // Trigger whenever theme or layout or title changes dynamically for real-time vibe feedback!
   const handleThemeChange = (id: typeof themeId) => {
     setThemeId(id);
-    onSaveConfig({ portalTitle, layoutId, themeId: id });
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId: id,
+      schoolCategoryName,
+      personalCategoryName
+    });
   };
 
   const handleLayoutChange = (id: typeof layoutId) => {
     setLayoutId(id);
-    onSaveConfig({ portalTitle, layoutId: id, themeId });
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId: id,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName
+    });
   };
 
   const handleTitleChange = (val: string) => {
     setPortalTitle(val);
-    onSaveConfig({ portalTitle: val, layoutId, themeId });
+    onSaveConfig({
+      ...config,
+      portalTitle: val,
+      layoutId,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName
+    });
+  };
+
+  const handleSchoolCategoryNameChange = (val: string) => {
+    setSchoolCategoryName(val);
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName: val,
+      personalCategoryName
+    });
+  };
+
+  const handlePersonalCategoryNameChange = (val: string) => {
+    setPersonalCategoryName(val);
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName: val
+    });
   };
 
   // Reset Add/Edit App form
@@ -153,9 +203,13 @@ export default function SettingsPanel({
         }
         return app;
       });
-      // Sort apps by order
-      updatedApps.sort((a, b) => a.order - b.order);
-      onSaveApps(updatedApps);
+      // Re-index by category
+      const schoolApps = updatedApps.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
+      schoolApps.forEach((app, i) => { app.order = i + 1; });
+      const personalApps = updatedApps.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
+      personalApps.forEach((app, i) => { app.order = i + 1; });
+
+      onSaveApps([...schoolApps, ...personalApps]);
     } else {
       // Adding new
       const newApp: VibeApp = {
@@ -169,8 +223,13 @@ export default function SettingsPanel({
         tags
       };
       const updatedApps = [...apps, newApp];
-      updatedApps.sort((a, b) => a.order - b.order);
-      onSaveApps(updatedApps);
+      // Re-index by category
+      const schoolApps = updatedApps.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
+      schoolApps.forEach((app, i) => { app.order = i + 1; });
+      const personalApps = updatedApps.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
+      personalApps.forEach((app, i) => { app.order = i + 1; });
+
+      onSaveApps([...schoolApps, ...personalApps]);
     }
 
     resetAppForm();
@@ -180,7 +239,11 @@ export default function SettingsPanel({
   const handleDeleteApp = (id: string) => {
     if (confirm('이 포털 항목을 정말 삭제하시겠습니까?')) {
       const filtered = apps.filter(app => app.id !== id);
-      onSaveApps(filtered);
+      const schoolApps = filtered.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
+      schoolApps.forEach((app, i) => { app.order = i + 1; });
+      const personalApps = filtered.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
+      personalApps.forEach((app, i) => { app.order = i + 1; });
+      onSaveApps([...schoolApps, ...personalApps]);
       if (editingAppId === id) {
         resetAppForm();
       }
@@ -191,36 +254,36 @@ export default function SettingsPanel({
   const handleMoveUp = (index: number) => {
     if (index === 0) return;
     const newApps = [...apps];
-    // Swap order property
-    const tempOrder = newApps[index].order;
-    newApps[index].order = newApps[index - 1].order;
-    newApps[index - 1].order = tempOrder;
+    // Swap position in array
+    const temp = newApps[index];
+    newApps[index] = newApps[index - 1];
+    newApps[index - 1] = temp;
 
-    // Sort to apply sequence
-    newApps.sort((a, b) => a.order - b.order);
-    // Ensure sequential clean order numbers
-    newApps.forEach((app, i) => {
-      app.order = i + 1;
-    });
-    onSaveApps(newApps);
+    // Ensure sequential clean order numbers by category based on list order
+    const schoolApps = newApps.filter(a => a.category === 'school');
+    schoolApps.forEach((app, i) => { app.order = i + 1; });
+    const personalApps = newApps.filter(a => a.category === 'personal');
+    personalApps.forEach((app, i) => { app.order = i + 1; });
+
+    onSaveApps([...schoolApps, ...personalApps]);
   };
 
   // Reorder app down
   const handleMoveDown = (index: number) => {
     if (index === apps.length - 1) return;
     const newApps = [...apps];
-    // Swap order property
-    const tempOrder = newApps[index].order;
-    newApps[index].order = newApps[index + 1].order;
-    newApps[index + 1].order = tempOrder;
+    // Swap position in array
+    const temp = newApps[index];
+    newApps[index] = newApps[index + 1];
+    newApps[index + 1] = temp;
 
-    // Sort to apply sequence
-    newApps.sort((a, b) => a.order - b.order);
-    // Ensure sequential clean order numbers
-    newApps.forEach((app, i) => {
-      app.order = i + 1;
-    });
-    onSaveApps(newApps);
+    // Ensure sequential clean order numbers by category based on list order
+    const schoolApps = newApps.filter(a => a.category === 'school');
+    schoolApps.forEach((app, i) => { app.order = i + 1; });
+    const personalApps = newApps.filter(a => a.category === 'personal');
+    personalApps.forEach((app, i) => { app.order = i + 1; });
+
+    onSaveApps([...schoolApps, ...personalApps]);
   };
 
   return (
@@ -278,6 +341,34 @@ export default function SettingsPanel({
                 className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
               />
               <p className="text-[10px] text-neutral-500">실시간으로 좌측 포털 제목 영역에 반영됩니다.</p>
+            </div>
+
+            {/* Category Names Config */}
+            <div className="space-y-3 p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/30">
+              <span className="block text-xs font-semibold text-neutral-200">카테고리 탭 이름 설정</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-medium text-neutral-400">🏫 학교 탭 이름</label>
+                  <input
+                    type="text"
+                    value={schoolCategoryName}
+                    onChange={(e) => handleSchoolCategoryNameChange(e.target.value)}
+                    placeholder="학교 프로젝트"
+                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-medium text-neutral-400">👤 개인 탭 이름</label>
+                  <input
+                    type="text"
+                    value={personalCategoryName}
+                    onChange={(e) => handlePersonalCategoryNameChange(e.target.value)}
+                    placeholder="개인 프로젝트"
+                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-neutral-500 leading-snug">메인 대시보드 및 필터 탭에 반영되며 실시간 저장됩니다.</p>
             </div>
 
             {/* Layout Options */}
@@ -387,8 +478,8 @@ export default function SettingsPanel({
                       onChange={(e) => setAppCategory(e.target.value as any)}
                       className="w-full px-2 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="school">🏫 학교 (School)</option>
-                      <option value="personal">👤 개인 (Personal)</option>
+                      <option value="school">🏫 {schoolCategoryName}</option>
+                      <option value="personal">👤 {personalCategoryName}</option>
                     </select>
                   </div>
                   <div>
@@ -506,7 +597,7 @@ export default function SettingsPanel({
                               ? 'bg-sky-950 text-sky-400 border border-sky-900/50'
                               : 'bg-violet-950 text-violet-400 border border-violet-900/50'
                           }`}>
-                            {app.category === 'school' ? '학교' : '개인'}
+                            {app.category === 'school' ? schoolCategoryName : personalCategoryName}
                           </span>
                           <span className="text-neutral-500 font-mono text-[10px]">#{app.order}</span>
                         </div>

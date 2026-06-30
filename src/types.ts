@@ -13,6 +13,9 @@ export interface PortalConfig {
   portalTitle: string;
   layoutId: 'grid' | 'list' | 'featured' | 'split';
   themeId: 'indigo' | 'emerald' | 'rosewood' | 'charcoal';
+  mode?: 'dark' | 'light';
+  schoolCategoryName?: string;
+  personalCategoryName?: string;
 }
 
 export interface PortalData {
@@ -20,75 +23,88 @@ export interface PortalData {
   apps: VibeApp[];
 }
 
-export const DEFAULT_THEMES = {
-  indigo: {
-    id: 'indigo' as const,
-    name: '지오메트릭 블루',
-    bg: 'bg-[#0B132B]',
-    cardBg: 'bg-[#1C2541]/60 backdrop-blur-md border border-blue-500/10',
-    text: 'text-slate-100',
-    textMuted: 'text-slate-400',
-    primary: 'blue',
-    accent: 'blue-500',
-    border: 'border-blue-500/10',
-    accentBg: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20',
-    primaryBtn: 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-950/45',
-    badge: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-    schoolBadge: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
-    personalBadge: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20',
-    sidebarBg: 'bg-[#0B132B] text-slate-100',
-  },
-  emerald: {
-    id: 'emerald' as const,
-    name: '지오메트릭 에메랄드',
-    bg: 'bg-[#051A14]',
-    cardBg: 'bg-[#0E2E25]/60 backdrop-blur-md border border-emerald-500/10',
-    text: 'text-slate-100',
-    textMuted: 'text-slate-400',
-    primary: 'emerald',
-    accent: 'emerald-500',
-    border: 'border-emerald-500/10',
-    accentBg: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20',
-    primaryBtn: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/45',
-    badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    schoolBadge: 'bg-teal-500/10 text-teal-400 border border-teal-500/20',
-    personalBadge: 'bg-[#051A14]/10 text-emerald-400 border border-emerald-500/20',
-    sidebarBg: 'bg-[#051A14] text-slate-100',
-  },
-  rosewood: {
-    id: 'rosewood' as const,
-    name: '지오메트릭 로즈',
-    bg: 'bg-[#1A0A10]',
-    cardBg: 'bg-[#2D141E]/60 backdrop-blur-md border border-rose-500/10',
-    text: 'text-slate-100',
-    textMuted: 'text-slate-400',
-    primary: 'rose',
-    accent: 'rose-500',
-    border: 'border-rose-500/10',
-    accentBg: 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20',
-    primaryBtn: 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950/45',
-    badge: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-    schoolBadge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-    personalBadge: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-    sidebarBg: 'bg-[#1A0A10] text-slate-100',
-  },
-  charcoal: {
-    id: 'charcoal' as const,
-    name: '지오메트릭 앰버',
-    bg: 'bg-[#120F0D]',
-    cardBg: 'bg-[#211B17]/60 backdrop-blur-md border border-amber-500/10',
-    text: 'text-slate-100',
-    textMuted: 'text-slate-400',
-    primary: 'amber',
-    accent: 'amber-500',
-    border: 'border-amber-500/10',
-    accentBg: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
-    primaryBtn: 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-950/45',
-    badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-    schoolBadge: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20',
-    personalBadge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-    sidebarBg: 'bg-[#120F0D] text-slate-100',
+export const GET_THEME_CLASSES = (themeId: 'indigo' | 'emerald' | 'rosewood' | 'charcoal', mode: 'dark' | 'light' = 'dark') => {
+  const isDark = mode === 'dark';
+  if (themeId === 'indigo') {
+    return {
+      id: 'indigo' as const,
+      name: '지오메트릭 블루',
+      bg: isDark ? 'bg-[#0B132B]' : 'bg-[#F0F4F8]',
+      cardBg: isDark ? 'bg-[#1C2541]/60 backdrop-blur-md border border-blue-500/10' : 'bg-white border border-blue-200/80 shadow-sm shadow-blue-100/30',
+      text: isDark ? 'text-slate-100' : 'text-slate-800',
+      textMuted: isDark ? 'text-slate-400' : 'text-slate-500',
+      primary: 'blue',
+      accent: 'blue-500',
+      border: isDark ? 'border-blue-500/10' : 'border-blue-200/60',
+      accentBg: isDark ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' : 'bg-blue-50 text-blue-600 hover:bg-blue-100',
+      primaryBtn: isDark ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-950/45' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200/60',
+      badge: isDark ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-600 border border-blue-100',
+      schoolBadge: isDark ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'bg-sky-50 text-sky-600 border border-sky-100',
+      personalBadge: isDark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+      sidebarBg: isDark ? 'bg-[#0B132B] text-slate-100' : 'bg-[#1C2541] text-slate-100',
+    };
+  } else if (themeId === 'emerald') {
+    return {
+      id: 'emerald' as const,
+      name: '지오메트릭 에메랄드',
+      bg: isDark ? 'bg-[#051A14]' : 'bg-[#F4FAF6]',
+      cardBg: isDark ? 'bg-[#0E2E25]/60 backdrop-blur-md border border-emerald-500/10' : 'bg-white border border-emerald-200/80 shadow-sm shadow-emerald-100/30',
+      text: isDark ? 'text-slate-100' : 'text-slate-800',
+      textMuted: isDark ? 'text-slate-400' : 'text-emerald-700/80',
+      primary: 'emerald',
+      accent: 'emerald-500',
+      border: isDark ? 'border-emerald-500/10' : 'border-emerald-200/60',
+      accentBg: isDark ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+      primaryBtn: isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/45' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200/60',
+      badge: isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      schoolBadge: isDark ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'bg-teal-50 text-teal-600 border border-teal-100',
+      personalBadge: isDark ? 'bg-[#051A14]/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      sidebarBg: isDark ? 'bg-[#051A14] text-slate-100' : 'bg-[#0E2E25] text-slate-100',
+    };
+  } else if (themeId === 'rosewood') {
+    return {
+      id: 'rosewood' as const,
+      name: '지오메트릭 로즈',
+      bg: isDark ? 'bg-[#1A0A10]' : 'bg-[#FFF5F8]',
+      cardBg: isDark ? 'bg-[#2D141E]/60 backdrop-blur-md border border-rose-500/10' : 'bg-white border border-rose-200/80 shadow-sm shadow-rose-100/30',
+      text: isDark ? 'text-slate-100' : 'text-slate-800',
+      textMuted: isDark ? 'text-slate-400' : 'text-rose-700/80',
+      primary: 'rose',
+      accent: 'rose-500',
+      border: isDark ? 'border-rose-500/10' : 'border-rose-200/60',
+      accentBg: isDark ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 text-rose-700 hover:bg-rose-100',
+      primaryBtn: isDark ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950/45' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200/60',
+      badge: isDark ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-rose-50 text-rose-700 border border-rose-100',
+      schoolBadge: isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-700 border border-amber-100',
+      personalBadge: isDark ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-rose-50 text-rose-700 border border-rose-100',
+      sidebarBg: isDark ? 'bg-[#1A0A10] text-slate-100' : 'bg-[#2D141E] text-slate-100',
+    };
+  } else {
+    return {
+      id: 'charcoal' as const,
+      name: '지오메트릭 앰버',
+      bg: isDark ? 'bg-[#120F0D]' : 'bg-[#FCF9F5]',
+      cardBg: isDark ? 'bg-[#211B17]/60 backdrop-blur-md border border-amber-500/10' : 'bg-white border border-amber-200 shadow-sm shadow-amber-100/30',
+      text: isDark ? 'text-slate-100' : 'text-slate-800',
+      textMuted: isDark ? 'text-slate-400' : 'text-amber-800/80',
+      primary: 'amber',
+      accent: 'amber-500',
+      border: isDark ? 'border-amber-500/10' : 'border-amber-200/60',
+      accentBg: isDark ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-amber-50 text-amber-700 hover:bg-amber-100',
+      primaryBtn: isDark ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-950/45' : 'bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md shadow-amber-200/60',
+      badge: isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-700 border border-amber-100',
+      schoolBadge: isDark ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-cyan-50 text-cyan-700 border border-cyan-100',
+      personalBadge: isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-700 border border-amber-100',
+      sidebarBg: isDark ? 'bg-[#120F0D] text-slate-100' : 'bg-[#211B17] text-slate-100',
+    };
   }
+};
+
+export const DEFAULT_THEMES = {
+  indigo: GET_THEME_CLASSES('indigo', 'dark'),
+  emerald: GET_THEME_CLASSES('emerald', 'dark'),
+  rosewood: GET_THEME_CLASSES('rosewood', 'dark'),
+  charcoal: GET_THEME_CLASSES('charcoal', 'dark')
 };
 
 export const DEFAULT_LAYOUTS = [
@@ -102,7 +118,8 @@ export const INITIAL_DATA: PortalData = {
   config: {
     portalTitle: 'My Vibe App Coding Portal',
     layoutId: 'grid',
-    themeId: 'emerald'
+    themeId: 'emerald',
+    mode: 'dark'
   },
   apps: [
     {
