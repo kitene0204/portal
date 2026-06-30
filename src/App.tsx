@@ -333,7 +333,23 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans ${activeTheme.bg}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans relative overflow-hidden ${activeTheme.bg}`}>
+      
+      {/* Premium Background Ambient Glow */}
+      <div className="absolute top-0 inset-x-0 h-[600px] overflow-hidden pointer-events-none -z-10">
+        <div className={`absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[160px] opacity-[0.12] transition-all duration-1000 ${
+          activeTheme.id === 'indigo' ? 'bg-blue-500' :
+          activeTheme.id === 'emerald' ? 'bg-emerald-500' :
+          activeTheme.id === 'rosewood' ? 'bg-rose-500' :
+          'bg-amber-500'
+        }`}></div>
+        <div className={`absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full blur-[140px] opacity-[0.08] transition-all duration-1000 ${
+          activeTheme.id === 'indigo' ? 'bg-indigo-500' :
+          activeTheme.id === 'emerald' ? 'bg-teal-500' :
+          activeTheme.id === 'rosewood' ? 'bg-pink-500' :
+          'bg-yellow-500'
+        }`}></div>
+      </div>
       
       {/* Dynamic Floating Subheader for warning if Supabase table or keys are missing */}
       {syncStatus === 'error' && syncError && (
@@ -444,7 +460,7 @@ export default function App() {
       </header>
 
       {/* Main Content Dashboard Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
         
         {/* Mobile Search input */}
         <div className="relative md:hidden mb-6">
@@ -458,22 +474,69 @@ export default function App() {
           />
         </div>
 
+        {/* Hero Portfolio Introduction Widget */}
+        <motion.div 
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className={`mb-8 p-6 sm:p-8 rounded-3xl border relative overflow-hidden backdrop-blur-md shadow-xl transition-all duration-500 ${activeTheme.cardBg} ${activeTheme.border}`}
+        >
+          {/* Subtle line background grid effect */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-neutral-500/10 dark:bg-white/5 border border-neutral-200/10 text-neutral-400 dark:text-neutral-300 text-[10px] font-bold tracking-wider uppercase font-mono shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                Expert Dev Workspace Active
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400 font-display">
+                {config.portalTitle || 'My Vibe App Coding Portal'}
+              </h2>
+              <p className="text-xs text-neutral-400 dark:text-neutral-400 leading-relaxed font-medium">
+                Vibe Coding 에이전트와 연동하여 직접 구축한 나만의 하이엔드 개발 포털입니다. 학교 과제, 학술 연구, 그리고 사이드 프로젝트 웹앱들을 하나의 공간에서 체계적으로 관리하세요. 드래그앤드롭 re-order 기능을 활용해 최우선 과제 및 추천 항목을 자유롭게 강조할 수 있습니다.
+              </p>
+            </div>
+            
+            {/* Real-time statistics counters in a mini-dashboard within the hero */}
+            <div className="flex gap-4 sm:gap-5 self-start md:self-center">
+              <div className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-sky-500/20 transition-all duration-300">
+                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono">{schoolCategoryName}</span>
+                <span className="text-2xl font-black text-sky-400 font-display mt-1">{schoolCount}</span>
+                <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Projects</span>
+              </div>
+              <div className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-violet-500/20 transition-all duration-300">
+                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono">{personalCategoryName}</span>
+                <span className="text-2xl font-black text-violet-400 font-display mt-1">{personalCount}</span>
+                <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Apps</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Categories Tab Selector */}
-        <div className="flex justify-between items-center mb-8 border-b border-neutral-200/10 pb-4">
-          <div className="flex gap-1.5 p-1 bg-neutral-950/40 border border-slate-800/40 rounded-xl flex-wrap">
+        <div className="flex justify-between items-center mb-8 border-b border-neutral-200/10 dark:border-white/5 pb-4">
+          <div className="flex gap-2 p-1.5 bg-neutral-950/40 dark:bg-black/30 border border-neutral-800/40 backdrop-blur-md rounded-2xl flex-wrap relative">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center gap-2 ${
+              className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                 activeTab === 'all'
-                  ? `${activeTheme.accentBg} font-bold shadow-sm shadow-black/20`
+                  ? 'text-slate-100 font-extrabold'
                   : 'text-neutral-400 hover:text-slate-200'
               }`}
             >
+              {activeTab === 'all' && (
+                <motion.span
+                  layoutId="activeTabGlow"
+                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                />
+              )}
               <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
               전체보기
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                 activeTab === 'all'
-                  ? 'bg-amber-500/15 text-amber-400'
+                  ? 'bg-amber-500/20 text-amber-300'
                   : 'bg-neutral-800/60 text-neutral-500'
               }`}>
                 {apps.length}
@@ -482,17 +545,24 @@ export default function App() {
 
             <button
               onClick={() => setActiveTab('school')}
-              className={`px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center gap-2 ${
+              className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                 activeTab === 'school'
-                  ? `${activeTheme.accentBg} font-bold shadow-sm shadow-black/20`
+                  ? 'text-slate-100 font-extrabold'
                   : 'text-neutral-400 hover:text-slate-200'
               }`}
             >
+              {activeTab === 'school' && (
+                <motion.span
+                  layoutId="activeTabGlow"
+                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                />
+              )}
               <GraduationCap className="w-4 h-4 text-sky-400" />
               {schoolCategoryName}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                 activeTab === 'school'
-                  ? 'bg-sky-500/15 text-sky-400'
+                  ? 'bg-sky-500/20 text-sky-300'
                   : 'bg-neutral-800/60 text-neutral-500'
               }`}>
                 {schoolCount}
@@ -501,17 +571,24 @@ export default function App() {
             
             <button
               onClick={() => setActiveTab('personal')}
-              className={`px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center gap-2 ${
+              className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                 activeTab === 'personal'
-                  ? `${activeTheme.accentBg} font-bold shadow-sm shadow-black/20`
+                  ? 'text-slate-100 font-extrabold'
                   : 'text-neutral-400 hover:text-slate-200'
               }`}
             >
+              {activeTab === 'personal' && (
+                <motion.span
+                  layoutId="activeTabGlow"
+                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                />
+              )}
               <Globe className="w-4 h-4 text-purple-400" />
               {personalCategoryName}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                 activeTab === 'personal'
-                  ? 'bg-purple-500/15 text-purple-400'
+                  ? 'bg-purple-500/20 text-purple-300'
                   : 'bg-neutral-800/60 text-neutral-500'
               }`}>
                 {personalCount}
@@ -519,8 +596,8 @@ export default function App() {
             </button>
           </div>
 
-          <div className="text-[11px] text-neutral-500 font-medium hidden sm:block">
-            정렬 기준: 지정된 순번 (오름차순)
+          <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-wider font-mono hidden sm:block">
+            Order-Priority Matrix Active
           </div>
         </div>
 
@@ -576,50 +653,49 @@ export default function App() {
                     onDragOver={(e) => handleDragOver(e, app.id)}
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, app.id)}
-                    className={`group p-6 rounded-2xl border transition-all duration-300 block relative hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/5 cursor-grab active:cursor-grabbing ${
-                      draggedAppId === app.id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                      dragOverAppId === app.id ? 'scale-[1.03] border-indigo-500 shadow-lg shadow-indigo-500/20 border-double' :
-                      `${activeTheme.cardBg} ${activeTheme.border}`
+                    className={`group p-6 rounded-2xl border transition-all duration-500 block relative hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/10 cursor-grab active:cursor-grabbing ${
+                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                      dragOverAppId === app.id ? 'scale-[1.03] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                      app.category === 'school'
+                        ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/40`
+                        : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/40`
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className={`p-3 rounded-xl transition-all group-hover:scale-110 ${
+                      <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-sm border ${
                         app.category === 'school' 
-                          ? isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-700'
-                          : isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-700'
+                          ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150'
+                          : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150'
                       }`}>
                         <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
                       </div>
                       
                       {/* Priority display order indicator badge */}
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[10px] text-neutral-500 font-semibold">
+                        <span className="font-mono text-[10px] text-neutral-500 font-bold">
                           #{app.order}
                         </span>
-                        <GripVertical className="w-4 h-4 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
 
-                    <div className="mt-4">
-                      <h3 className={`text-base font-semibold group-hover:text-indigo-500 transition-colors flex items-center gap-1.5 ${activeTheme.text}`}>
+                    <div className="mt-5">
+                      <h3 className={`text-base font-bold tracking-tight group-hover:text-indigo-400 transition-colors flex items-center gap-1.5 font-display ${activeTheme.text}`}>
                         {app.title}
-                        <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-neutral-400 transition-opacity" />
+                        <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-neutral-400 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </h3>
                       {app.description && (
-                        <p className={`text-xs mt-2 leading-relaxed line-clamp-2 ${activeTheme.textMuted}`}>
+                        <p className={`text-xs mt-2.5 leading-relaxed line-clamp-2 font-medium ${activeTheme.textMuted}`}>
                           {app.description}
                         </p>
                       )}
                     </div>
 
                     {/* Geometric Balance Order/Priority progress bar */}
-                    <div className="h-1 w-full bg-slate-800 rounded-full mt-4">
+                    <div className="h-1.5 w-full bg-neutral-900/40 dark:bg-black/30 rounded-full mt-5 overflow-hidden border border-neutral-800/10">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          activeTheme.id === 'indigo' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' :
-                          activeTheme.id === 'emerald' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
-                          activeTheme.id === 'rosewood' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
-                          'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                          app.category === 'school' ? 'bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]' : 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]'
                         }`}
                         style={{ width: `${Math.max(20, Math.min(100, 105 - Number(app.order) * 15))}%` }}
                       ></div>
@@ -627,11 +703,15 @@ export default function App() {
 
                     {/* App tags */}
                     {app.tags && app.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-slate-800">
+                      <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-neutral-200/5 dark:border-white/5">
                         {app.tags.map((tag, i) => (
                           <span
                             key={i}
-                            className={`px-2 py-0.5 rounded text-[10px] font-medium tracking-wide ${activeTheme.badge}`}
+                            className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ${
+                              app.category === 'school'
+                                ? isDark ? 'bg-sky-500/5 text-sky-400 border border-sky-500/10' : 'bg-sky-50 text-sky-700 border border-sky-100'
+                                : isDark ? 'bg-violet-500/5 text-violet-400 border border-violet-500/10' : 'bg-violet-50 text-violet-700 border border-violet-100'
+                            }`}
                           >
                             #{tag}
                           </span>
@@ -665,45 +745,54 @@ export default function App() {
                     onDragOver={(e) => handleDragOver(e, app.id)}
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, app.id)}
-                    className={`group p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-md cursor-grab active:cursor-grabbing ${
-                      draggedAppId === app.id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                      dragOverAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20 border-double' :
-                      `${activeTheme.cardBg} ${activeTheme.border}`
+                    className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                      dragOverAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                      app.category === 'school'
+                        ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/30`
+                        : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/30`
                     }`}
                   >
                     <div className="flex items-start gap-4 flex-1 min-w-0">
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <GripVertical className="w-4 h-4 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity" />
-                        <div className={`p-3 rounded-lg ${
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        <div className={`p-3 rounded-xl border transition-all duration-300 group-hover:scale-105 ${
                           app.category === 'school' 
-                            ? isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-700'
-                            : isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-700'
+                            ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-700 border-sky-150'
+                            : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' : 'bg-violet-50 text-violet-700 border-violet-150'
                         }`}>
                           <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
                         </div>
                       </div>
                       
-                      <div className="space-y-1 min-w-0 flex-1">
+                      <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-[10px] text-neutral-400 font-semibold">#{app.order}</span>
-                          <h3 className={`text-sm font-semibold truncate ${activeTheme.text}`}>{app.title}</h3>
+                          <span className="font-mono text-[10px] text-neutral-400 font-bold">#{app.order}</span>
+                          <h3 className={`text-sm font-bold truncate font-display ${activeTheme.text}`}>{app.title}</h3>
                           
                           {/* Mini label indicator */}
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold ${
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wide uppercase ${
                             app.category === 'school' ? activeTheme.schoolBadge : activeTheme.personalBadge
                           }`}>
                             {app.category === 'school' ? 'SCHOOL' : 'PERSONAL'}
                           </span>
                         </div>
                         {app.description && (
-                          <p className={`text-xs leading-relaxed line-clamp-1 ${activeTheme.textMuted}`}>
+                          <p className={`text-xs leading-relaxed line-clamp-1 font-medium ${activeTheme.textMuted}`}>
                             {app.description}
                           </p>
                         )}
                         {app.tags && app.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {app.tags.map((tag, i) => (
-                              <span key={i} className="text-[10px] text-neutral-500 mr-2 font-mono">#{tag}</span>
+                              <span
+                                key={i}
+                                className={`text-[10px] font-semibold mr-2 font-mono ${
+                                  app.category === 'school' ? 'text-sky-400/80' : 'text-purple-400/80'
+                                }`}
+                              >
+                                #{tag}
+                              </span>
                             ))}
                           </div>
                         )}
@@ -715,7 +804,7 @@ export default function App() {
                         href={app.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${activeTheme.primaryBtn}`}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:scale-[1.02] ${activeTheme.primaryBtn}`}
                       >
                         <span>웹앱 바로가기</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -745,53 +834,55 @@ export default function App() {
                       onDragOver={(e) => handleDragOver(e, filteredApps[0].id)}
                       onDragEnd={handleDragEnd}
                       onDrop={(e) => handleDrop(e, filteredApps[0].id)}
-                      className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-300 shadow-lg relative overflow-hidden group cursor-grab active:cursor-grabbing ${
-                        draggedAppId === filteredApps[0].id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                        dragOverAppId === filteredApps[0].id ? 'scale-[1.02] border-indigo-500 shadow-lg shadow-indigo-500/20 border-double' :
-                        `${activeTheme.cardBg} ${activeTheme.border}`
+                      className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-500 shadow-xl relative overflow-hidden group cursor-grab active:cursor-grabbing ${
+                        draggedAppId === filteredApps[0].id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                        dragOverAppId === filteredApps[0].id ? 'scale-[1.02] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                        filteredApps[0].category === 'school'
+                          ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/30`
+                          : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/30`
                       }`}
                     >
                       
                       {/* Highlight absolute design glow decor */}
-                      <div className="absolute -right-24 -top-24 w-48 h-48 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
+                      <div className="absolute -right-24 -top-24 w-52 h-52 bg-indigo-500/5 dark:bg-white/[0.02] blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
  
                        <div>
                          <div className="flex justify-between items-center">
-                           <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase ${
+                           <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-wider uppercase border ${
                              filteredApps[0].category === 'school' ? activeTheme.schoolBadge : activeTheme.personalBadge
                            }`}>
                              🎯 최우선 추천 프로젝트
                            </span>
                            <div className="flex items-center gap-1.5">
                              <span className="font-mono text-xs text-neutral-400 font-bold">#{filteredApps[0].order} 순위</span>
-                             <GripVertical className="w-4 h-4 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity" />
+                             <GripVertical className="w-4 h-4 text-slate-500/40 opacity-40 group-hover:opacity-100 transition-opacity" />
                            </div>
                          </div>
 
                         <div className="mt-8 flex items-center gap-4">
-                          <div className={`p-4 rounded-2xl ${
+                          <div className={`p-4 rounded-2xl border ${
                             filteredApps[0].category === 'school' 
-                              ? isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-700'
-                              : isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-700'
+                              ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 shadow-[0_0_15px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150'
+                              : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-[0_0_15px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150'
                           }`}>
                             <DynamicIcon name={filteredApps[0].icon || 'Globe'} className="w-8 h-8" />
                           </div>
                           <div>
-                            <h2 className={`text-xl font-bold tracking-tight ${activeTheme.text}`}>
+                            <h2 className={`text-xl sm:text-2xl font-extrabold tracking-tight font-display ${activeTheme.text}`}>
                               {filteredApps[0].title}
                             </h2>
-                            <p className="text-xs text-neutral-400 mt-1 truncate max-w-sm">{filteredApps[0].link}</p>
+                            <p className="text-xs text-neutral-500 mt-1.5 truncate max-w-sm font-mono">{filteredApps[0].link}</p>
                           </div>
                         </div>
 
-                        <p className={`text-sm mt-6 leading-relaxed ${activeTheme.textMuted}`}>
+                        <p className={`text-sm mt-6 leading-relaxed font-medium ${activeTheme.textMuted}`}>
                           {filteredApps[0].description || '별도의 세부 설명이 지정되지 않은 웹앱 프로젝트 포털 항목입니다. 바로가기 버튼을 통해 앱 작동을 확인하실 수 있습니다.'}
                         </p>
 
                         {filteredApps[0].tags && filteredApps[0].tags.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-8">
                             {filteredApps[0].tags.map((tag, i) => (
-                              <span key={i} className={`px-3 py-1 rounded-md text-xs font-semibold ${activeTheme.badge}`}>
+                              <span key={i} className={`px-3 py-1 rounded-lg text-xs font-bold border ${activeTheme.badge}`}>
                                 #{tag}
                               </span>
                             ))}
@@ -799,8 +890,8 @@ export default function App() {
                         )}
                       </div>
 
-                      <div className="mt-12 pt-6 border-t border-neutral-200/5 flex items-center justify-between">
-                        <span className="text-[11px] text-neutral-500 font-medium">실시간 동기화 상태: 완료</span>
+                      <div className="mt-12 pt-6 border-t border-neutral-200/5 dark:border-white/5 flex items-center justify-between gap-4 flex-wrap">
+                        <span className="text-[11px] text-neutral-500 font-semibold font-mono">WORKSPACE STATE: SYNCED</span>
                         <a
                           href={filteredApps[0].link}
                           target="_blank"
@@ -817,7 +908,7 @@ export default function App() {
 
                 {/* Right Side: Scrollable simpler vertical checklist of other apps */}
                 <div className="lg:col-span-5 space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">포털 대시보드 리스트</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2 font-mono">Portal Dashboard Checklist</h3>
                   
                   {filteredApps.slice(1).length === 0 ? (
                     <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
@@ -835,28 +926,30 @@ export default function App() {
                         onDragOver={(e) => handleDragOver(e, app.id)}
                         onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, app.id)}
-                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-1.5 cursor-grab active:cursor-grabbing ${
-                          draggedAppId === app.id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                          dragOverAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-lg shadow-indigo-500/20 border-double' :
-                          `${activeTheme.cardBg} ${activeTheme.border}`
+                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 cursor-grab active:cursor-grabbing ${
+                          draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                          dragOverAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                          app.category === 'school'
+                            ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/20`
+                            : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/20`
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <GripVertical className="w-4 h-4 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                          <div className={`p-2 rounded-lg flex-shrink-0 ${
+                          <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          <div className={`p-2 rounded-lg border flex-shrink-0 ${
                             app.category === 'school' 
-                              ? isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-700'
-                              : isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-700'
+                              ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-700 border-sky-150'
+                              : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' : 'bg-violet-50 text-violet-700 border-violet-150'
                           }`}>
                             <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
-                            <h4 className={`text-xs font-semibold truncate ${activeTheme.text}`}>{app.title}</h4>
-                            <span className="text-[10px] text-neutral-500 font-mono">#{app.order} 순번</span>
+                            <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
+                            <span className="text-[10px] text-neutral-500 font-mono font-semibold">#{app.order} 순번</span>
                           </div>
                         </div>
 
-                        <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform group-hover:translate-x-1" />
                       </a>
                     ))
                   )}
@@ -881,19 +974,19 @@ export default function App() {
                   <div
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleColumnDrop(e, 'school')}
-                    className="space-y-4 p-4 rounded-2xl bg-neutral-900/5 dark:bg-neutral-950/20 border border-transparent hover:border-sky-500/10 hover:bg-sky-500/5 transition-all duration-300"
+                    className="space-y-4 p-5 rounded-3xl bg-neutral-900/10 dark:bg-black/25 border border-neutral-200/10 dark:border-white/5 shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center justify-between border-b border-neutral-200/10 pb-3">
-                      <h3 className={`text-sm font-bold flex items-center gap-2 ${activeTheme.text}`}>
+                    <div className="flex items-center justify-between border-b border-neutral-200/10 dark:border-white/5 pb-4">
+                      <h3 className={`text-sm font-extrabold flex items-center gap-2 font-display ${activeTheme.text}`}>
                         <GraduationCap className="w-4 h-4 text-sky-400" />
                         {schoolCategoryName} 포털 ({schoolAppsSplit.length})
                       </h3>
-                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold">School Works</span>
+                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold font-mono">School Works</span>
                     </div>
 
                     <div className="space-y-3.5">
                       {schoolAppsSplit.length === 0 ? (
-                        <div className="p-8 rounded-xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
+                        <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
                           {schoolCategoryName} 탭에 일치하는 웹앱이 없습니다.
                         </div>
                       ) : (
@@ -908,22 +1001,24 @@ export default function App() {
                             onDragOver={(e) => handleDragOver(e, app.id)}
                             onDragEnd={handleDragEnd}
                             onDrop={(e) => handleDrop(e, app.id)}
-                            className={`group p-4 rounded-xl border block transition-all duration-300 hover:shadow-md hover:border-sky-500/30 cursor-grab active:cursor-grabbing ${
-                              draggedAppId === app.id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                              dragOverAppId === app.id ? 'scale-[1.02] border-sky-500 shadow-lg shadow-sky-500/20 border-double' :
+                            className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg hover:border-sky-500/30 cursor-grab active:cursor-grabbing ${
+                              draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                              dragOverAppId === app.id ? 'scale-[1.02] border-sky-500 shadow-md shadow-sky-500/20' :
                               `${activeTheme.cardBg} ${activeTheme.border}`
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="w-3.5 h-3.5 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0 animate-pulse" />
-                                <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4 text-sky-400" />
-                                <h4 className={`text-xs font-semibold truncate ${activeTheme.text}`}>{app.title}</h4>
+                                <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/10">
+                                  <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                                </div>
+                                <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                               </div>
-                              <span className="font-mono text-[9px] text-neutral-500">#{app.order}</span>
+                              <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
                             </div>
                             {app.description && (
-                              <p className="text-[11px] text-neutral-400 mt-2 line-clamp-2 leading-relaxed">
+                              <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
                                 {app.description}
                               </p>
                             )}
@@ -939,19 +1034,19 @@ export default function App() {
                   <div
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleColumnDrop(e, 'personal')}
-                    className="space-y-4 p-4 rounded-2xl bg-neutral-900/5 dark:bg-neutral-950/20 border border-transparent hover:border-violet-500/10 hover:bg-violet-500/5 transition-all duration-300"
+                    className="space-y-4 p-5 rounded-3xl bg-neutral-900/10 dark:bg-black/25 border border-neutral-200/10 dark:border-white/5 shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center justify-between border-b border-neutral-200/10 pb-3">
-                      <h3 className={`text-sm font-bold flex items-center gap-2 ${activeTheme.text}`}>
+                    <div className="flex items-center justify-between border-b border-neutral-200/10 dark:border-white/5 pb-4">
+                      <h3 className={`text-sm font-extrabold flex items-center gap-2 font-display ${activeTheme.text}`}>
                         <Globe className="w-4 h-4 text-violet-400" />
                         {personalCategoryName} 포털 ({personalAppsSplit.length})
                       </h3>
-                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold">Personal Side</span>
+                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold font-mono">Personal Side</span>
                     </div>
 
                     <div className="space-y-3.5">
                       {personalAppsSplit.length === 0 ? (
-                        <div className="p-8 rounded-xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
+                        <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
                           {personalCategoryName} 탭에 일치하는 웹앱이 없습니다.
                         </div>
                       ) : (
@@ -966,22 +1061,24 @@ export default function App() {
                             onDragOver={(e) => handleDragOver(e, app.id)}
                             onDragEnd={handleDragEnd}
                             onDrop={(e) => handleDrop(e, app.id)}
-                            className={`group p-4 rounded-xl border block transition-all duration-300 hover:shadow-md hover:border-violet-500/30 cursor-grab active:cursor-grabbing ${
-                              draggedAppId === app.id ? 'opacity-35 border-dashed border-slate-600 scale-95 pointer-events-none' :
-                              dragOverAppId === app.id ? 'scale-[1.02] border-violet-500 shadow-lg shadow-violet-500/20 border-double' :
+                            className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg hover:border-violet-500/30 cursor-grab active:cursor-grabbing ${
+                              draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                              dragOverAppId === app.id ? 'scale-[1.02] border-violet-500 shadow-md shadow-violet-500/20' :
                               `${activeTheme.cardBg} ${activeTheme.border}`
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="w-3.5 h-3.5 text-slate-500/60 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0 animate-pulse" />
-                                <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4 text-violet-400" />
-                                <h4 className={`text-xs font-semibold truncate ${activeTheme.text}`}>{app.title}</h4>
+                                <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/10">
+                                  <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                                </div>
+                                <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                               </div>
-                              <span className="font-mono text-[9px] text-neutral-500">#{app.order}</span>
+                              <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
                             </div>
                             {app.description && (
-                              <p className="text-[11px] text-neutral-400 mt-2 line-clamp-2 leading-relaxed">
+                              <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
                                 {app.description}
                               </p>
                             )}
