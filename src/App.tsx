@@ -25,6 +25,7 @@ import {
   VibeApp, 
   PortalConfig, 
   PortalData, 
+  CategoryTab,
   GET_THEME_CLASSES,
   DEFAULT_THEMES, 
   INITIAL_DATA 
@@ -41,7 +42,7 @@ import DynamicIcon from './components/DynamicIcon';
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<PortalData>(INITIAL_DATA);
-  const [activeTab, setActiveTab] = useState<'all' | 'school' | 'personal'>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Modals & Panels
@@ -104,16 +105,26 @@ export default function App() {
       // Insert
       updatedApps.splice(newTargetIndex, 0, draggedApp);
 
-      // Re-index both categories
-      const schoolApps = updatedApps.filter(a => a.category === 'school');
-      schoolApps.forEach((app, i) => { app.order = i + 1; });
+      // Re-index all categories
+      const defaultCategories: CategoryTab[] = [
+        { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+        { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+      ];
+      const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
 
-      const personalApps = updatedApps.filter(a => a.category === 'personal');
-      personalApps.forEach((app, i) => { app.order = i + 1; });
+      const finalApps: VibeApp[] = [];
+      categories.forEach((cat) => {
+        const catApps = updatedApps.filter(a => a.category === cat.id);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      });
+      const knownCategoryIds = categories.map(c => c.id);
+      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+      finalApps.push(...otherApps);
 
       const newData = {
         ...data,
-        apps: updatedApps
+        apps: finalApps
       };
 
       setData(newData);
@@ -136,7 +147,7 @@ export default function App() {
     setDragOverAppId(null);
   };
 
-  const handleColumnDrop = async (e: React.DragEvent, category: 'school' | 'personal') => {
+  const handleColumnDrop = async (e: React.DragEvent, category: string) => {
     e.preventDefault();
     if (!draggedAppId) return;
 
@@ -152,16 +163,26 @@ export default function App() {
         updatedApps.splice(draggedIndex, 1);
         updatedApps.push(draggedApp);
 
-        // Re-index both
-        const schoolApps = updatedApps.filter(a => a.category === 'school');
-        schoolApps.forEach((app, i) => { app.order = i + 1; });
+        // Re-index all categories
+        const defaultCategories: CategoryTab[] = [
+          { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+          { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+        ];
+        const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
 
-        const personalApps = updatedApps.filter(a => a.category === 'personal');
-        personalApps.forEach((app, i) => { app.order = i + 1; });
+        const finalApps: VibeApp[] = [];
+        categories.forEach((cat) => {
+          const catApps = updatedApps.filter(a => a.category === cat.id);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        });
+        const knownCategoryIds = categories.map(c => c.id);
+        const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+        finalApps.push(...otherApps);
 
         const newData = {
           ...data,
-          apps: updatedApps
+          apps: finalApps
         };
 
         setData(newData);
@@ -281,6 +302,51 @@ export default function App() {
   const schoolCategoryName = config.schoolCategoryName || '학교 프로젝트';
   const personalCategoryName = config.personalCategoryName || '개인 프로젝트';
 
+  // Dynamic Categories Definition
+  const defaultCategories: CategoryTab[] = [
+    { id: 'school', name: schoolCategoryName, icon: 'GraduationCap' },
+    { id: 'personal', name: personalCategoryName, icon: 'Globe' }
+  ];
+  const categories = config.categories && config.categories.length > 0 ? config.categories : defaultCategories;
+
+  // Helper to determine theme accents by category
+  const getCategoryStyles = (catId: string) => {
+    const isSchool = catId === 'school';
+    const isPersonal = catId === 'personal';
+    
+    if (isSchool) {
+      return {
+        hoverBorder: 'hover:border-sky-500/40',
+        iconBg: isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150',
+        progressBar: 'bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]',
+        tag: isDark ? 'bg-sky-500/5 text-sky-400 border border-sky-500/10' : 'bg-sky-50 text-sky-700 border border-sky-100',
+        badge: activeTheme.schoolBadge,
+        activeBorder: 'border-sky-500 shadow-sky-500/20',
+        accentColor: 'text-sky-400'
+      };
+    } else if (isPersonal) {
+      return {
+        hoverBorder: 'hover:border-purple-500/40',
+        iconBg: isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150',
+        progressBar: 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]',
+        tag: isDark ? 'bg-violet-500/5 text-violet-400 border border-violet-500/10' : 'bg-violet-50 text-violet-700 border border-violet-100',
+        badge: activeTheme.personalBadge,
+        activeBorder: 'border-violet-500 shadow-violet-500/20',
+        accentColor: 'text-violet-400'
+      };
+    } else {
+      return {
+        hoverBorder: 'hover:border-emerald-500/40',
+        iconBg: isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-emerald-50 text-emerald-700 border-emerald-150',
+        progressBar: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
+        tag: isDark ? 'bg-emerald-500/5 text-emerald-400 border border-emerald-500/10' : 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+        badge: 'bg-emerald-950 text-emerald-400 border border-emerald-900/50',
+        activeBorder: 'border-emerald-500 shadow-emerald-500/20',
+        accentColor: 'text-emerald-400'
+      };
+    }
+  };
+
   // Filters apps based on active category tab, search query, and sorts by order
   const filteredApps = apps
     .filter(app => {
@@ -296,28 +362,15 @@ export default function App() {
     .sort((a, b) => {
       if (activeTab === 'all') {
         if (a.category !== b.category) {
-          return a.category === 'school' ? -1 : 1;
+          const aIndex = categories.findIndex(c => c.id === a.category);
+          const bIndex = categories.findIndex(c => c.id === b.category);
+          const aOrder = aIndex !== -1 ? aIndex : 999;
+          const bOrder = bIndex !== -1 ? bIndex : 999;
+          return aOrder - bOrder;
         }
       }
       return a.order - b.order;
     });
-
-  // Separate apps specifically for Compact Split layout
-  const schoolAppsSplit = apps
-    .filter(app => app.category === 'school' && 
-      (app.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       (app.description && app.description.toLowerCase().includes(searchQuery.toLowerCase()))))
-    .sort((a, b) => a.order - b.order);
-
-  const personalAppsSplit = apps
-    .filter(app => app.category === 'personal' && 
-      (app.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       (app.description && app.description.toLowerCase().includes(searchQuery.toLowerCase()))))
-    .sort((a, b) => a.order - b.order);
-
-  // Tab counts
-  const schoolCount = apps.filter(app => app.category === 'school').length;
-  const personalCount = apps.filter(app => app.category === 'personal').length;
 
   if (loading) {
     return (
@@ -499,17 +552,21 @@ export default function App() {
             </div>
             
             {/* Real-time statistics counters in a mini-dashboard within the hero */}
-            <div className="flex gap-4 sm:gap-5 self-start md:self-center">
-              <div className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-sky-500/20 transition-all duration-300">
-                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono">{schoolCategoryName}</span>
-                <span className="text-2xl font-black text-sky-400 font-display mt-1">{schoolCount}</span>
-                <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Projects</span>
-              </div>
-              <div className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-violet-500/20 transition-all duration-300">
-                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono">{personalCategoryName}</span>
-                <span className="text-2xl font-black text-violet-400 font-display mt-1">{personalCount}</span>
-                <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Apps</span>
-              </div>
+            <div className="flex flex-wrap gap-4 sm:gap-5 self-start md:self-center">
+              {categories.map((cat) => {
+                const count = apps.filter(app => app.category === cat.id).length;
+                const catStyles = getCategoryStyles(cat.id);
+                return (
+                  <div key={cat.id} className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-indigo-500/20 transition-all duration-300 min-w-[100px]">
+                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <DynamicIcon name={cat.icon || 'Folder'} className={`w-3.5 h-3.5 ${catStyles.accentColor || 'text-indigo-400'}`} />
+                      {cat.name}
+                    </span>
+                    <span className={`text-2xl font-black ${catStyles.accentColor || 'text-indigo-400'} font-display mt-1`}>{count}</span>
+                    <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Projects</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </motion.div>
@@ -543,57 +600,40 @@ export default function App() {
               </span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('school')}
-              className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
-                activeTab === 'school'
-                  ? 'text-slate-100 font-extrabold'
-                  : 'text-neutral-400 hover:text-slate-200'
-              }`}
-            >
-              {activeTab === 'school' && (
-                <motion.span
-                  layoutId="activeTabGlow"
-                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
-                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-                />
-              )}
-              <GraduationCap className="w-4 h-4 text-sky-400" />
-              {schoolCategoryName}
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
-                activeTab === 'school'
-                  ? 'bg-sky-500/20 text-sky-300'
-                  : 'bg-neutral-800/60 text-neutral-500'
-              }`}>
-                {schoolCount}
-              </span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('personal')}
-              className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
-                activeTab === 'personal'
-                  ? 'text-slate-100 font-extrabold'
-                  : 'text-neutral-400 hover:text-slate-200'
-              }`}
-            >
-              {activeTab === 'personal' && (
-                <motion.span
-                  layoutId="activeTabGlow"
-                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
-                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-                />
-              )}
-              <Globe className="w-4 h-4 text-purple-400" />
-              {personalCategoryName}
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
-                activeTab === 'personal'
-                  ? 'bg-purple-500/20 text-purple-300'
-                  : 'bg-neutral-800/60 text-neutral-500'
-              }`}>
-                {personalCount}
-              </span>
-            </button>
+            {categories.map((cat) => {
+              const count = apps.filter(app => app.category === cat.id).length;
+              const catStyles = getCategoryStyles(cat.id);
+              const isSelected = activeTab === cat.id;
+              
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveTab(cat.id)}
+                  className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
+                    isSelected
+                      ? 'text-slate-100 font-extrabold'
+                      : 'text-neutral-400 hover:text-slate-200'
+                  }`}
+                >
+                  {isSelected && (
+                    <motion.span
+                      layoutId="activeTabGlow"
+                      className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                      transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                    />
+                  )}
+                  <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor || 'text-indigo-400'}`} />
+                  {cat.name}
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                    isSelected
+                      ? 'bg-indigo-500/20 text-indigo-300'
+                      : 'bg-neutral-800/60 text-neutral-500'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-wider font-mono hidden sm:block">
@@ -656,16 +696,12 @@ export default function App() {
                     className={`group p-6 rounded-2xl border transition-all duration-500 block relative hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/10 cursor-grab active:cursor-grabbing ${
                       draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                       dragOverAppId === app.id ? 'scale-[1.03] border-indigo-500 shadow-xl shadow-indigo-500/20' :
-                      app.category === 'school'
-                        ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/40`
-                        : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/40`
+                      `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-sm border ${
-                        app.category === 'school' 
-                          ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150'
-                          : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150'
+                        getCategoryStyles(app.category).iconBg
                       }`}>
                         <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
                       </div>
@@ -695,7 +731,7 @@ export default function App() {
                     <div className="h-1.5 w-full bg-neutral-900/40 dark:bg-black/30 rounded-full mt-5 overflow-hidden border border-neutral-800/10">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          app.category === 'school' ? 'bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]' : 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]'
+                          getCategoryStyles(app.category).progressBar
                         }`}
                         style={{ width: `${Math.max(20, Math.min(100, 105 - Number(app.order) * 15))}%` }}
                       ></div>
@@ -708,9 +744,7 @@ export default function App() {
                           <span
                             key={i}
                             className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ${
-                              app.category === 'school'
-                                ? isDark ? 'bg-sky-500/5 text-sky-400 border border-sky-500/10' : 'bg-sky-50 text-sky-700 border border-sky-100'
-                                : isDark ? 'bg-violet-500/5 text-violet-400 border border-violet-500/10' : 'bg-violet-50 text-violet-700 border border-violet-100'
+                              getCategoryStyles(app.category).tag
                             }`}
                           >
                             #{tag}
@@ -748,18 +782,14 @@ export default function App() {
                     className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 cursor-grab active:cursor-grabbing ${
                       draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                       dragOverAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20' :
-                      app.category === 'school'
-                        ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/30`
-                        : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/30`
+                      `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
                     <div className="flex items-start gap-4 flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
                         <div className={`p-3 rounded-xl border transition-all duration-300 group-hover:scale-105 ${
-                          app.category === 'school' 
-                            ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-700 border-sky-150'
-                            : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' : 'bg-violet-50 text-violet-700 border-violet-150'
+                          getCategoryStyles(app.category).iconBg
                         }`}>
                           <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
                         </div>
@@ -771,10 +801,10 @@ export default function App() {
                           <h3 className={`text-sm font-bold truncate font-display ${activeTheme.text}`}>{app.title}</h3>
                           
                           {/* Mini label indicator */}
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wide uppercase ${
-                            app.category === 'school' ? activeTheme.schoolBadge : activeTheme.personalBadge
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase ${
+                            getCategoryStyles(app.category).badge
                           }`}>
-                            {app.category === 'school' ? 'SCHOOL' : 'PERSONAL'}
+                            {categories.find(c => c.id === app.category)?.name || app.category.toUpperCase()}
                           </span>
                         </div>
                         {app.description && (
@@ -788,7 +818,7 @@ export default function App() {
                               <span
                                 key={i}
                                 className={`text-[10px] font-semibold mr-2 font-mono ${
-                                  app.category === 'school' ? 'text-sky-400/80' : 'text-purple-400/80'
+                                  app.category === 'school' ? 'text-sky-400/80' : app.category === 'personal' ? 'text-purple-400/80' : 'text-emerald-400/80'
                                 }`}
                               >
                                 #{tag}
@@ -837,9 +867,7 @@ export default function App() {
                       className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-500 shadow-xl relative overflow-hidden group cursor-grab active:cursor-grabbing ${
                         draggedAppId === filteredApps[0].id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                         dragOverAppId === filteredApps[0].id ? 'scale-[1.02] border-indigo-500 shadow-xl shadow-indigo-500/20' :
-                        filteredApps[0].category === 'school'
-                          ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/30`
-                          : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/30`
+                        `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(filteredApps[0].category).hoverBorder}`
                       }`}
                     >
                       
@@ -849,9 +877,9 @@ export default function App() {
                        <div>
                          <div className="flex justify-between items-center">
                            <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-wider uppercase border ${
-                             filteredApps[0].category === 'school' ? activeTheme.schoolBadge : activeTheme.personalBadge
+                             getCategoryStyles(filteredApps[0].category).badge
                            }`}>
-                             🎯 최우선 추천 프로젝트
+                             🎯 {categories.find(c => c.id === filteredApps[0].category)?.name || filteredApps[0].category.toUpperCase()} 최우선 추천
                            </span>
                            <div className="flex items-center gap-1.5">
                              <span className="font-mono text-xs text-neutral-400 font-bold">#{filteredApps[0].order} 순위</span>
@@ -861,9 +889,7 @@ export default function App() {
 
                         <div className="mt-8 flex items-center gap-4">
                           <div className={`p-4 rounded-2xl border ${
-                            filteredApps[0].category === 'school' 
-                              ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 shadow-[0_0_15px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150'
-                              : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-[0_0_15px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150'
+                            getCategoryStyles(filteredApps[0].category).iconBg
                           }`}>
                             <DynamicIcon name={filteredApps[0].icon || 'Globe'} className="w-8 h-8" />
                           </div>
@@ -929,17 +955,13 @@ export default function App() {
                         className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 cursor-grab active:cursor-grabbing ${
                           draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                           dragOverAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-md shadow-indigo-500/20' :
-                          app.category === 'school'
-                            ? `${activeTheme.cardBg} ${activeTheme.border} hover:border-sky-500/20`
-                            : `${activeTheme.cardBg} ${activeTheme.border} hover:border-purple-500/20`
+                          `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                           <div className={`p-2 rounded-lg border flex-shrink-0 ${
-                            app.category === 'school' 
-                              ? isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-700 border-sky-150'
-                              : isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' : 'bg-violet-50 text-violet-700 border-violet-150'
+                            getCategoryStyles(app.category).iconBg
                           }`}>
                             <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4" />
                           </div>
@@ -958,7 +980,7 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* COMPACT SPLIT LAYOUT (학교 / 개인 좌우 2단 분할 레이아웃) */}
+            {/* COMPACT SPLIT LAYOUT (학교 / 개인 / 기타 동적 다단 분할 레이아웃) */}
             {config.layoutId === 'split' && (
               <motion.div
                 key="split"
@@ -966,129 +988,88 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className={`grid grid-cols-1 ${activeTab === 'all' ? 'md:grid-cols-2' : ''} gap-8`}
+                className={`grid grid-cols-1 ${
+                  activeTab === 'all' 
+                    ? categories.length === 2 
+                      ? 'md:grid-cols-2' 
+                      : 'md:grid-cols-3' 
+                    : ''
+                } gap-8`}
               >
-                
-                {/* School Column */}
-                {(activeTab === 'all' || activeTab === 'school') && (
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleColumnDrop(e, 'school')}
-                    className="space-y-4 p-5 rounded-3xl bg-neutral-900/10 dark:bg-black/25 border border-neutral-200/10 dark:border-white/5 shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between border-b border-neutral-200/10 dark:border-white/5 pb-4">
-                      <h3 className={`text-sm font-extrabold flex items-center gap-2 font-display ${activeTheme.text}`}>
-                        <GraduationCap className="w-4 h-4 text-sky-400" />
-                        {schoolCategoryName} 포털 ({schoolAppsSplit.length})
-                      </h3>
-                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold font-mono">School Works</span>
-                    </div>
+                {categories.map((cat) => {
+                  const isVisible = activeTab === 'all' || activeTab === cat.id;
+                  if (!isVisible) return null;
 
-                    <div className="space-y-3.5">
-                      {schoolAppsSplit.length === 0 ? (
-                        <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
-                          {schoolCategoryName} 탭에 일치하는 웹앱이 없습니다.
-                        </div>
-                      ) : (
-                        schoolAppsSplit.map((app) => (
-                          <a
-                            key={app.id}
-                            href={app.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, app.id)}
-                            onDragOver={(e) => handleDragOver(e, app.id)}
-                            onDragEnd={handleDragEnd}
-                            onDrop={(e) => handleDrop(e, app.id)}
-                            className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg hover:border-sky-500/30 cursor-grab active:cursor-grabbing ${
-                              draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                              dragOverAppId === app.id ? 'scale-[1.02] border-sky-500 shadow-md shadow-sky-500/20' :
-                              `${activeTheme.cardBg} ${activeTheme.border}`
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                                <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/10">
-                                  <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                  const catAppsSplit = apps
+                    .filter(app => app.category === cat.id && 
+                      (app.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                       (app.description && app.description.toLowerCase().includes(searchQuery.toLowerCase()))))
+                    .sort((a, b) => a.order - b.order);
+
+                  const catStyles = getCategoryStyles(cat.id);
+
+                  return (
+                    <div
+                      key={cat.id}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleColumnDrop(e, cat.id)}
+                      className="space-y-4 p-5 rounded-3xl bg-neutral-900/10 dark:bg-black/25 border border-neutral-200/10 dark:border-white/5 shadow-xl transition-all duration-300"
+                    >
+                      <div className="flex items-center justify-between border-b border-neutral-200/10 dark:border-white/5 pb-4">
+                        <h3 className={`text-sm font-extrabold flex items-center gap-2 font-display ${activeTheme.text}`}>
+                          <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor}`} />
+                          {cat.name} ({catAppsSplit.length})
+                        </h3>
+                        <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold font-mono">
+                          {cat.id.toUpperCase().substring(0, 8)}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        {catAppsSplit.length === 0 ? (
+                          <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
+                            {cat.name} 탭에 일치하는 웹앱이 없습니다.
+                          </div>
+                        ) : (
+                          catAppsSplit.map((app) => (
+                            <a
+                              key={app.id}
+                              href={app.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, app.id)}
+                              onDragOver={(e) => handleDragOver(e, app.id)}
+                              onDragEnd={handleDragEnd}
+                              onDrop={(e) => handleDrop(e, app.id)}
+                              className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg ${catStyles.hoverBorder} cursor-grab active:cursor-grabbing ${
+                                draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                                dragOverAppId === app.id ? `scale-[1.02] ${catStyles.activeBorder} shadow-md` :
+                                `${activeTheme.cardBg} ${activeTheme.border}`
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                  <div className={`p-1.5 rounded-lg ${catStyles.iconBg}`}>
+                                    <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                                  </div>
+                                  <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                                 </div>
-                                <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
+                                <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
                               </div>
-                              <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
-                            </div>
-                            {app.description && (
-                              <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
-                                {app.description}
-                              </p>
-                            )}
-                          </a>
-                        ))
-                      )}
+                              {app.description && (
+                                <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
+                                  {app.description}
+                                </p>
+                              )}
+                            </a>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Personal Column */}
-                {(activeTab === 'all' || activeTab === 'personal') && (
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleColumnDrop(e, 'personal')}
-                    className="space-y-4 p-5 rounded-3xl bg-neutral-900/10 dark:bg-black/25 border border-neutral-200/10 dark:border-white/5 shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between border-b border-neutral-200/10 dark:border-white/5 pb-4">
-                      <h3 className={`text-sm font-extrabold flex items-center gap-2 font-display ${activeTheme.text}`}>
-                        <Globe className="w-4 h-4 text-violet-400" />
-                        {personalCategoryName} 포털 ({personalAppsSplit.length})
-                      </h3>
-                      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold font-mono">Personal Side</span>
-                    </div>
-
-                    <div className="space-y-3.5">
-                      {personalAppsSplit.length === 0 ? (
-                        <div className="p-8 rounded-2xl border border-dashed border-neutral-200/10 text-center text-xs text-neutral-500">
-                          {personalCategoryName} 탭에 일치하는 웹앱이 없습니다.
-                        </div>
-                      ) : (
-                        personalAppsSplit.map((app) => (
-                          <a
-                            key={app.id}
-                            href={app.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, app.id)}
-                            onDragOver={(e) => handleDragOver(e, app.id)}
-                            onDragEnd={handleDragEnd}
-                            onDrop={(e) => handleDrop(e, app.id)}
-                            className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg hover:border-violet-500/30 cursor-grab active:cursor-grabbing ${
-                              draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                              dragOverAppId === app.id ? 'scale-[1.02] border-violet-500 shadow-md shadow-violet-500/20' :
-                              `${activeTheme.cardBg} ${activeTheme.border}`
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                                <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/10">
-                                  <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
-                                </div>
-                                <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
-                              </div>
-                              <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
-                            </div>
-                            {app.description && (
-                              <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
-                                {app.description}
-                              </p>
-                            )}
-                          </a>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
+                  );
+                })}
               </motion.div>
             )}
 

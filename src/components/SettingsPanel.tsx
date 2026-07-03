@@ -2,6 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { 
   VibeApp, 
   PortalConfig, 
+  CategoryTab,
   DEFAULT_THEMES, 
   DEFAULT_LAYOUTS 
 } from '../types';
@@ -66,14 +67,24 @@ export default function SettingsPanel({
   const [portalTitle, setPortalTitle] = useState(config.portalTitle);
   const [layoutId, setLayoutId] = useState(config.layoutId);
   const [themeId, setThemeId] = useState(config.themeId);
+
+  const defaultCategories: CategoryTab[] = [
+    { id: 'school', name: config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+    { id: 'personal', name: config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+  ];
+  const [categories, setCategories] = useState<CategoryTab[]>(config.categories && config.categories.length > 0 ? config.categories : defaultCategories);
   const [schoolCategoryName, setSchoolCategoryName] = useState(config.schoolCategoryName || '학교 프로젝트');
   const [personalCategoryName, setPersonalCategoryName] = useState(config.personalCategoryName || '개인 프로젝트');
+
+  // Dynamic Category state additions
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('Folder');
 
   // App Editor States
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [appTitle, setAppTitle] = useState('');
   const [appLink, setAppLink] = useState('');
-  const [appCategory, setAppCategory] = useState<'school' | 'personal'>('school');
+  const [appCategory, setAppCategory] = useState<string>('school');
   const [appOrder, setAppOrder] = useState(1);
   const [appDescription, setAppDescription] = useState('');
   const [appIcon, setAppIcon] = useState('Globe');
@@ -87,7 +98,8 @@ export default function SettingsPanel({
       layoutId,
       themeId,
       schoolCategoryName,
-      personalCategoryName
+      personalCategoryName,
+      categories
     });
   };
 
@@ -100,7 +112,8 @@ export default function SettingsPanel({
       layoutId,
       themeId: id,
       schoolCategoryName,
-      personalCategoryName
+      personalCategoryName,
+      categories
     });
   };
 
@@ -112,7 +125,8 @@ export default function SettingsPanel({
       layoutId: id,
       themeId,
       schoolCategoryName,
-      personalCategoryName
+      personalCategoryName,
+      categories
     });
   };
 
@@ -124,32 +138,91 @@ export default function SettingsPanel({
       layoutId,
       themeId,
       schoolCategoryName,
-      personalCategoryName
+      personalCategoryName,
+      categories
     });
   };
 
-  const handleSchoolCategoryNameChange = (val: string) => {
-    setSchoolCategoryName(val);
-    onSaveConfig({
-      ...config,
-      portalTitle,
-      layoutId,
-      themeId,
-      schoolCategoryName: val,
-      personalCategoryName
-    });
-  };
-
-  const handlePersonalCategoryNameChange = (val: string) => {
-    setPersonalCategoryName(val);
+  // Dynamic categories management handlers
+  const handleAddCategory = () => {
+    if (!newCatName.trim()) return;
+    const newId = 'cat_' + Date.now().toString();
+    const updated = [
+      ...categories,
+      { id: newId, name: newCatName.trim(), icon: newCatIcon }
+    ];
+    setCategories(updated);
     onSaveConfig({
       ...config,
       portalTitle,
       layoutId,
       themeId,
       schoolCategoryName,
-      personalCategoryName: val
+      personalCategoryName,
+      categories: updated
     });
+    setNewCatName('');
+  };
+
+  const handleUpdateCategory = (id: string, name: string, icon: string) => {
+    const updated = categories.map(cat => {
+      if (cat.id === id) {
+        return { ...cat, name, icon };
+      }
+      return cat;
+    });
+    setCategories(updated);
+
+    const schoolName = id === 'school' ? name : schoolCategoryName;
+    const personalName = id === 'personal' ? name : personalCategoryName;
+    if (id === 'school') setSchoolCategoryName(name);
+    if (id === 'personal') setPersonalCategoryName(name);
+
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName: schoolName,
+      personalCategoryName: personalName,
+      categories: updated
+    });
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    if (id === 'school' || id === 'personal') {
+      alert('기본 카테고리(학교, 개인)는 삭제할 수 없습니다.');
+      return;
+    }
+    if (confirm('이 카테고리 탭을 정말 삭제하시겠습니까? 해당 카테고리에 속한 웹앱들은 기본 카테고리로 이동됩니다.')) {
+      const updatedCategories = categories.filter(cat => cat.id !== id);
+      setCategories(updatedCategories);
+
+      // Move apps of deleted category to 'school' (fallback)
+      const updatedApps = apps.map(app => {
+        if (app.category === id) {
+          return { ...app, category: 'school' };
+        }
+        return app;
+      });
+
+      // Re-index all categories
+      const finalApps: VibeApp[] = [];
+      updatedCategories.forEach((cat) => {
+        const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      });
+
+      onSaveConfig({
+        ...config,
+        portalTitle,
+        layoutId,
+        themeId,
+        categories: updatedCategories
+      });
+      onSaveApps(finalApps);
+    }
   };
 
   // Reset Add/Edit App form
@@ -157,7 +230,7 @@ export default function SettingsPanel({
     setEditingAppId(null);
     setAppTitle('');
     setAppLink('');
-    setAppCategory('school');
+    setAppCategory(categories[0]?.id || 'school');
     setAppOrder(apps.length + 1);
     setAppDescription('');
     setAppIcon('Globe');
@@ -203,13 +276,19 @@ export default function SettingsPanel({
         }
         return app;
       });
-      // Re-index by category
-      const schoolApps = updatedApps.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
-      schoolApps.forEach((app, i) => { app.order = i + 1; });
-      const personalApps = updatedApps.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
-      personalApps.forEach((app, i) => { app.order = i + 1; });
 
-      onSaveApps([...schoolApps, ...personalApps]);
+      // Re-index dynamically by all categories
+      const finalApps: VibeApp[] = [];
+      categories.forEach((cat) => {
+        const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      });
+      const knownCategoryIds = categories.map(c => c.id);
+      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+      finalApps.push(...otherApps);
+
+      onSaveApps(finalApps);
     } else {
       // Adding new
       const newApp: VibeApp = {
@@ -223,13 +302,19 @@ export default function SettingsPanel({
         tags
       };
       const updatedApps = [...apps, newApp];
-      // Re-index by category
-      const schoolApps = updatedApps.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
-      schoolApps.forEach((app, i) => { app.order = i + 1; });
-      const personalApps = updatedApps.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
-      personalApps.forEach((app, i) => { app.order = i + 1; });
 
-      onSaveApps([...schoolApps, ...personalApps]);
+      // Re-index dynamically by all categories
+      const finalApps: VibeApp[] = [];
+      categories.forEach((cat) => {
+        const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      });
+      const knownCategoryIds = categories.map(c => c.id);
+      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+      finalApps.push(...otherApps);
+
+      onSaveApps(finalApps);
     }
 
     resetAppForm();
@@ -239,11 +324,17 @@ export default function SettingsPanel({
   const handleDeleteApp = (id: string) => {
     if (confirm('이 포털 항목을 정말 삭제하시겠습니까?')) {
       const filtered = apps.filter(app => app.id !== id);
-      const schoolApps = filtered.filter(a => a.category === 'school').sort((a, b) => a.order - b.order);
-      schoolApps.forEach((app, i) => { app.order = i + 1; });
-      const personalApps = filtered.filter(a => a.category === 'personal').sort((a, b) => a.order - b.order);
-      personalApps.forEach((app, i) => { app.order = i + 1; });
-      onSaveApps([...schoolApps, ...personalApps]);
+      const finalApps: VibeApp[] = [];
+      categories.forEach((cat) => {
+        const catApps = filtered.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      });
+      const knownCategoryIds = categories.map(c => c.id);
+      const otherApps = filtered.filter(a => !knownCategoryIds.includes(a.category));
+      finalApps.push(...otherApps);
+
+      onSaveApps(finalApps);
       if (editingAppId === id) {
         resetAppForm();
       }
@@ -259,13 +350,17 @@ export default function SettingsPanel({
     newApps[index] = newApps[index - 1];
     newApps[index - 1] = temp;
 
-    // Ensure sequential clean order numbers by category based on list order
-    const schoolApps = newApps.filter(a => a.category === 'school');
-    schoolApps.forEach((app, i) => { app.order = i + 1; });
-    const personalApps = newApps.filter(a => a.category === 'personal');
-    personalApps.forEach((app, i) => { app.order = i + 1; });
+    const finalApps: VibeApp[] = [];
+    categories.forEach((cat) => {
+      const catApps = newApps.filter(a => a.category === cat.id);
+      catApps.forEach((app, i) => { app.order = i + 1; });
+      finalApps.push(...catApps);
+    });
+    const knownCategoryIds = categories.map(c => c.id);
+    const otherApps = newApps.filter(a => !knownCategoryIds.includes(a.category));
+    finalApps.push(...otherApps);
 
-    onSaveApps([...schoolApps, ...personalApps]);
+    onSaveApps(finalApps);
   };
 
   // Reorder app down
@@ -277,13 +372,17 @@ export default function SettingsPanel({
     newApps[index] = newApps[index + 1];
     newApps[index + 1] = temp;
 
-    // Ensure sequential clean order numbers by category based on list order
-    const schoolApps = newApps.filter(a => a.category === 'school');
-    schoolApps.forEach((app, i) => { app.order = i + 1; });
-    const personalApps = newApps.filter(a => a.category === 'personal');
-    personalApps.forEach((app, i) => { app.order = i + 1; });
+    const finalApps: VibeApp[] = [];
+    categories.forEach((cat) => {
+      const catApps = newApps.filter(a => a.category === cat.id);
+      catApps.forEach((app, i) => { app.order = i + 1; });
+      finalApps.push(...catApps);
+    });
+    const knownCategoryIds = categories.map(c => c.id);
+    const otherApps = newApps.filter(a => !knownCategoryIds.includes(a.category));
+    finalApps.push(...otherApps);
 
-    onSaveApps([...schoolApps, ...personalApps]);
+    onSaveApps(finalApps);
   };
 
   return (
@@ -343,32 +442,102 @@ export default function SettingsPanel({
               <p className="text-[10px] text-neutral-500">실시간으로 좌측 포털 제목 영역에 반영됩니다.</p>
             </div>
 
-            {/* Category Names Config */}
-            <div className="space-y-3 p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/30">
-              <span className="block text-xs font-semibold text-neutral-200">카테고리 탭 이름 설정</span>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-medium text-neutral-400">🏫 학교 탭 이름</label>
+            {/* Category Management */}
+            <div className="space-y-3 p-4 rounded-xl border border-neutral-800 bg-neutral-950/40">
+              <span className="block text-xs font-semibold text-neutral-200 flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                대시보드 카테고리 탭 관리 ({categories.length})
+              </span>
+              
+              {/* Category Items list */}
+              <div className="space-y-2 mt-2 max-h-[160px] overflow-y-auto pr-1">
+                {categories.map((cat) => {
+                  const isDefault = cat.id === 'school' || cat.id === 'personal';
+                  const catAppsCount = apps.filter(app => app.category === cat.id).length;
+                  return (
+                    <div key={cat.id} className="p-2 rounded-lg bg-neutral-900/60 border border-neutral-800/80 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <select
+                          value={cat.icon || 'Folder'}
+                          onChange={(e) => handleUpdateCategory(cat.id, cat.name, e.target.value)}
+                          className="bg-neutral-950 border border-neutral-800 text-neutral-300 rounded px-1 py-0.5 text-[11px] focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="GraduationCap">🏫</option>
+                          <option value="Globe">🌐</option>
+                          <option value="BookOpen">📖</option>
+                          <option value="Clock">⏰</option>
+                          <option value="Code2">💻</option>
+                          <option value="Folder">📁</option>
+                          <option value="Sparkles">✨</option>
+                          <option value="Heart">❤️</option>
+                          <option value="Coffee">☕</option>
+                          <option value="Award">🏆</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={cat.name}
+                          onChange={(e) => handleUpdateCategory(cat.id, e.target.value, cat.icon || 'Folder')}
+                          className="bg-neutral-950 border border-neutral-800 text-neutral-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-indigo-500 font-semibold w-full min-w-[80px]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[9px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 rounded font-mono">
+                          {catAppsCount}개
+                        </span>
+                        {!isDefault ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="p-1 text-neutral-500 hover:text-rose-400 hover:bg-neutral-800/50 rounded transition-colors"
+                            title="카테고리 삭제"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <span className="text-[9px] text-neutral-600 font-mono select-none px-1">SYS</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add New Category form */}
+              <div className="border-t border-neutral-800/80 pt-3 mt-1.5 space-y-2">
+                <span className="block text-[11px] font-semibold text-neutral-400">➕ 새 카테고리 탭 추가</span>
+                <div className="flex gap-2">
+                  <select
+                    value={newCatIcon}
+                    onChange={(e) => setNewCatIcon(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-neutral-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Folder">📁 폴더</option>
+                    <option value="GraduationCap">🏫 학업</option>
+                    <option value="Globe">🌐 웹</option>
+                    <option value="BookOpen">📖 독서</option>
+                    <option value="Clock">⏰ 시간</option>
+                    <option value="Code2">💻 개발</option>
+                    <option value="Sparkles">✨ 혜택</option>
+                    <option value="Heart">❤️ 개인</option>
+                    <option value="Coffee">☕ 여가</option>
+                    <option value="Award">🏆 공모전</option>
+                  </select>
                   <input
                     type="text"
-                    value={schoolCategoryName}
-                    onChange={(e) => handleSchoolCategoryNameChange(e.target.value)}
-                    placeholder="학교 프로젝트"
-                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="새 카테고리 이름 (예: 공모전 준비)"
+                    className="flex-1 px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-medium text-neutral-400">👤 개인 탭 이름</label>
-                  <input
-                    type="text"
-                    value={personalCategoryName}
-                    onChange={(e) => handlePersonalCategoryNameChange(e.target.value)}
-                    placeholder="개인 프로젝트"
-                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                  >
+                    추가
+                  </button>
                 </div>
               </div>
-              <p className="text-[10px] text-neutral-500 leading-snug">메인 대시보드 및 필터 탭에 반영되며 실시간 저장됩니다.</p>
             </div>
 
             {/* Layout Options */}
@@ -475,11 +644,14 @@ export default function SettingsPanel({
                     <label className="block text-[11px] text-neutral-400 mb-1 font-medium">분류 탭 *</label>
                     <select
                       value={appCategory}
-                      onChange={(e) => setAppCategory(e.target.value as any)}
+                      onChange={(e) => setAppCategory(e.target.value)}
                       className="w-full px-2 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="school">🏫 {schoolCategoryName}</option>
-                      <option value="personal">👤 {personalCategoryName}</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.id === 'school' ? '🏫' : cat.id === 'personal' ? '👤' : '📁'} {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -592,13 +764,23 @@ export default function SettingsPanel({
                     >
                       <div className="flex-1 min-w-0 pr-2">
                         <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-tight ${
-                            app.category === 'school'
-                              ? 'bg-sky-950 text-sky-400 border border-sky-900/50'
-                              : 'bg-violet-950 text-violet-400 border border-violet-900/50'
-                          }`}>
-                            {app.category === 'school' ? schoolCategoryName : personalCategoryName}
-                          </span>
+                          {(() => {
+                            const foundCat = categories.find(c => c.id === app.category);
+                            const catName = foundCat ? foundCat.name : app.category;
+                            const isSchool = app.category === 'school';
+                            const isPersonal = app.category === 'personal';
+                            return (
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-tight ${
+                                isSchool
+                                  ? 'bg-sky-950 text-sky-400 border border-sky-900/50'
+                                  : isPersonal
+                                  ? 'bg-violet-950 text-violet-400 border border-violet-900/50'
+                                  : 'bg-emerald-950 text-emerald-400 border border-emerald-900/50'
+                              }`}>
+                                {catName}
+                              </span>
+                            );
+                          })()}
                           <span className="text-neutral-500 font-mono text-[10px]">#{app.order}</span>
                         </div>
                         <div className="font-medium text-neutral-200 mt-1 truncate">{app.title}</div>

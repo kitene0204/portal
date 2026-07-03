@@ -1,8 +1,14 @@
+export interface CategoryTab {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
 export interface VibeApp {
   id: string;
   title: string;
   link: string;
-  category: 'school' | 'personal';
+  category: string;
   order: number;
   description?: string;
   tags?: string[];
@@ -16,6 +22,7 @@ export interface PortalConfig {
   mode?: 'dark' | 'light';
   schoolCategoryName?: string;
   personalCategoryName?: string;
+  categories?: CategoryTab[];
 }
 
 export interface PortalData {
