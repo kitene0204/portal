@@ -18,7 +18,9 @@ import {
   Tag,
   GripVertical,
   Sun,
-  Moon
+  Moon,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 import { 
@@ -57,9 +59,141 @@ export default function App() {
   // Drag & Drop Reordering States
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
   const [dragOverAppId, setDragOverAppId] = useState<string | null>(null);
+  const [isDraggingState, setIsDraggingState] = useState(false);
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+
+  // Drag & Drop Image/Thumbnail States
+  const [dragOverImageAppId, setDragOverImageAppId] = useState<string | null>(null);
+
+  const handleCardDragEnter = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (draggedAppId) {
+      if (id !== draggedAppId && dragOverAppId !== id) {
+        setDragOverAppId(id);
+      }
+    } else {
+      const types = e.dataTransfer.types;
+      const isExternalDrag = types.includes('Files') || types.includes('text/html') || types.includes('text/uri-list') || types.includes('text/plain');
+      if (isExternalDrag) {
+        setDragOverImageAppId(id);
+      }
+    }
+  };
+
+  const handleCardDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (!draggedAppId) {
+      const types = e.dataTransfer.types;
+      const isExternalDrag = types.includes('Files') || types.includes('text/html') || types.includes('text/uri-list') || types.includes('text/plain');
+      if (isExternalDrag && dragOverImageAppId !== id) {
+        setDragOverImageAppId(id);
+      }
+    } else {
+      if (id !== draggedAppId && dragOverAppId !== id) {
+        setDragOverAppId(id);
+      }
+    }
+  };
+
+  const handleCardDragLeave = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (draggedAppId) {
+      if (dragOverAppId === id) {
+        setDragOverAppId(null);
+      }
+    } else {
+      if (dragOverImageAppId === id) {
+        setDragOverImageAppId(null);
+      }
+    }
+  };
+
+  const updateAppThumbnail = async (appId: string, thumbnail: string) => {
+    const updatedApps = data.apps.map(app => {
+      if (app.id === appId) {
+        return { ...app, thumbnail };
+      }
+      return app;
+    });
+
+    const newData = {
+      ...data,
+      apps: updatedApps
+    };
+
+    setData(newData);
+    setSyncStatus('syncing');
+    try {
+      const result = await savePortalData(newData);
+      if (result.success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+        setSyncError(result.error);
+      }
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncError(err.message || '저장 오류');
+    }
+  };
+
+  const handleCardDrop = async (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (draggedAppId) {
+      await handleDrop(e, id);
+    } else {
+      setDragOverImageAppId(null);
+      
+      let imageUrl = '';
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+          if (file.size > 2 * 1024 * 1024) {
+            alert('이미지 파일 크기는 2MB 이하여야 합니다.');
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64Url = reader.result as string;
+            await updateAppThumbnail(id, base64Url);
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+
+      const uriList = e.dataTransfer.getData('text/uri-list');
+      if (uriList) {
+        imageUrl = uriList.split('\n')[0].trim();
+      }
+
+      if (!imageUrl) {
+        const html = e.dataTransfer.getData('text/html');
+        if (html) {
+          const match = html.match(/<img[^>]+src="([^">]+)"/i);
+          if (match && match[1]) {
+            imageUrl = match[1];
+          }
+        }
+      }
+
+      if (!imageUrl) {
+        const plainText = e.dataTransfer.getData('text');
+        if (plainText && (plainText.startsWith('http://') || plainText.startsWith('https://') || plainText.startsWith('data:image/'))) {
+          imageUrl = plainText.trim();
+        }
+      }
+
+      if (imageUrl) {
+        await updateAppThumbnail(id, imageUrl);
+      }
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedAppId(id);
+    setIsDraggingState(true);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -73,6 +207,18 @@ export default function App() {
   const handleDragEnd = () => {
     setDraggedAppId(null);
     setDragOverAppId(null);
+    setDragActiveId(null);
+    setTimeout(() => {
+      setIsDraggingState(false);
+    }, 100);
+  };
+
+  const handleCardClick = (e: React.MouseEvent, link: string) => {
+    if (isDraggingState || draggedAppId) {
+      e.preventDefault();
+      return;
+    }
+    window.open(link, '_blank');
   };
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
@@ -683,22 +829,34 @@ export default function App() {
                 }}
               >
                 {filteredApps.map((app) => (
-                  <a
+                  <div
                     key={app.id}
-                    href={app.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    draggable
+                    role="button"
+                    onClick={(e) => handleCardClick(e, app.link)}
+                    draggable={dragActiveId === app.id}
                     onDragStart={(e) => handleDragStart(e, app.id)}
-                    onDragOver={(e) => handleDragOver(e, app.id)}
+                    onDragEnter={(e) => handleCardDragEnter(e, app.id)}
+                    onDragOver={(e) => handleCardDragOver(e, app.id)}
+                    onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                     onDragEnd={handleDragEnd}
-                    onDrop={(e) => handleDrop(e, app.id)}
-                    className={`group p-6 rounded-2xl border transition-all duration-500 block relative hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/10 cursor-grab active:cursor-grabbing ${
+                    onDrop={(e) => handleCardDrop(e, app.id)}
+                    className={`group p-6 rounded-2xl border transition-all duration-500 block relative hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/10 cursor-pointer ${
                       draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                       dragOverAppId === app.id ? 'scale-[1.03] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                      dragOverImageAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-lg shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                       `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
+                    {/* Image drop overlay */}
+                    {dragOverImageAppId === app.id && (
+                      <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
+                        <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400">
+                          <Upload className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div className="text-xs font-bold text-indigo-200">여기에 놓아 썸네일 설정</div>
+                        <div className="text-[10px] text-neutral-400">웹 이미지 또는 이미지 파일</div>
+                      </div>
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-sm border ${
                         getCategoryStyles(app.category).iconBg
@@ -711,9 +869,27 @@ export default function App() {
                         <span className="font-mono text-[10px] text-neutral-500 font-bold">
                           #{app.order}
                         </span>
-                        <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        <div 
+                          className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
+                          onMouseDown={() => setDragActiveId(app.id)}
+                          onMouseUp={() => setDragActiveId(null)}
+                          onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                        >
+                          <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                     </div>
+
+                    {app.thumbnail && (
+                      <div className="w-full aspect-square rounded-xl overflow-hidden border border-neutral-200/10 dark:border-white/5 mt-4 bg-black/25">
+                        <img 
+                          src={app.thumbnail} 
+                          alt={app.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                    )}
 
                     <div className="mt-5">
                       <h3 className={`text-base font-bold tracking-tight group-hover:text-indigo-400 transition-colors flex items-center gap-1.5 font-display ${activeTheme.text}`}>
@@ -752,7 +928,7 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                  </a>
+                  </div>
                 ))}
               </motion.div>
             )}
@@ -774,25 +950,55 @@ export default function App() {
                 {filteredApps.map((app) => (
                   <div
                     key={app.id}
-                    draggable
+                    draggable={dragActiveId === app.id}
                     onDragStart={(e) => handleDragStart(e, app.id)}
-                    onDragOver={(e) => handleDragOver(e, app.id)}
+                    onDragEnter={(e) => handleCardDragEnter(e, app.id)}
+                    onDragOver={(e) => handleCardDragOver(e, app.id)}
+                    onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                     onDragEnd={handleDragEnd}
-                    onDrop={(e) => handleDrop(e, app.id)}
-                    className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                    onDrop={(e) => handleCardDrop(e, app.id)}
+                    className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 relative overflow-hidden ${
                       draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                       dragOverAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                      dragOverImageAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                       `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
+                    {/* Image drop overlay */}
+                    {dragOverImageAppId === app.id && (
+                      <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
+                        <div className="text-xs font-bold text-indigo-200 flex items-center gap-2">
+                          <Upload className="w-4 h-4 animate-pulse" />
+                          <span>여기에 놓아 썸네일 설정</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-start gap-4 flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
-                        <div className={`p-3 rounded-xl border transition-all duration-300 group-hover:scale-105 ${
-                          getCategoryStyles(app.category).iconBg
-                        }`}>
-                          <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
+                        <div 
+                          className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
+                          onMouseDown={() => setDragActiveId(app.id)}
+                          onMouseUp={() => setDragActiveId(null)}
+                          onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                        >
+                          <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
+                        {app.thumbnail ? (
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-neutral-200/10 dark:border-white/5 flex-shrink-0 bg-black/25 shadow-sm">
+                            <img 
+                              src={app.thumbnail} 
+                              alt={app.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                              referrerPolicy="no-referrer" 
+                            />
+                          </div>
+                        ) : (
+                          <div className={`p-3 rounded-xl border transition-all duration-300 group-hover:scale-105 ${
+                            getCategoryStyles(app.category).iconBg
+                          }`}>
+                            <DynamicIcon name={app.icon || 'Globe'} className="w-5 h-5" />
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-1.5 min-w-0 flex-1">
@@ -861,15 +1067,28 @@ export default function App() {
                     <div
                       draggable
                       onDragStart={(e) => handleDragStart(e, filteredApps[0].id)}
-                      onDragOver={(e) => handleDragOver(e, filteredApps[0].id)}
+                      onDragEnter={(e) => handleCardDragEnter(e, filteredApps[0].id)}
+                      onDragOver={(e) => handleCardDragOver(e, filteredApps[0].id)}
+                      onDragLeave={(e) => handleCardDragLeave(e, filteredApps[0].id)}
                       onDragEnd={handleDragEnd}
-                      onDrop={(e) => handleDrop(e, filteredApps[0].id)}
+                      onDrop={(e) => handleCardDrop(e, filteredApps[0].id)}
                       className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-500 shadow-xl relative overflow-hidden group cursor-grab active:cursor-grabbing ${
                         draggedAppId === filteredApps[0].id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                         dragOverAppId === filteredApps[0].id ? 'scale-[1.02] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                        dragOverImageAppId === filteredApps[0].id ? 'scale-[1.01] border-indigo-500 shadow-xl shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                         `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(filteredApps[0].category).hoverBorder}`
                       }`}
                     >
+                      {/* Image drop overlay */}
+                      {dragOverImageAppId === filteredApps[0].id && (
+                        <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center gap-2 border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
+                          <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400">
+                            <Upload className="w-6 h-6 animate-pulse" />
+                          </div>
+                          <div className="text-xs font-bold text-indigo-200">여기에 놓아 썸네일 설정</div>
+                          <div className="text-[10px] text-neutral-400">웹 이미지 또는 이미지 파일</div>
+                        </div>
+                      )}
                       
                       {/* Highlight absolute design glow decor */}
                       <div className="absolute -right-24 -top-24 w-52 h-52 bg-indigo-500/5 dark:bg-white/[0.02] blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
@@ -900,6 +1119,17 @@ export default function App() {
                             <p className="text-xs text-neutral-500 mt-1.5 truncate max-w-sm font-mono">{filteredApps[0].link}</p>
                           </div>
                         </div>
+
+                        {filteredApps[0].thumbnail && (
+                          <div className="w-full max-w-sm aspect-square mx-auto rounded-2xl overflow-hidden border border-neutral-200/10 dark:border-white/5 my-5 bg-black/25">
+                            <img 
+                              src={filteredApps[0].thumbnail} 
+                              alt={filteredApps[0].title} 
+                              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
+                              referrerPolicy="no-referrer" 
+                            />
+                          </div>
+                        )}
 
                         <p className={`text-sm mt-6 leading-relaxed font-medium ${activeTheme.textMuted}`}>
                           {filteredApps[0].description || '별도의 세부 설명이 지정되지 않은 웹앱 프로젝트 포털 항목입니다. 바로가기 버튼을 통해 앱 작동을 확인하실 수 있습니다.'}
@@ -942,29 +1172,55 @@ export default function App() {
                     </div>
                   ) : (
                     filteredApps.slice(1).map((app) => (
-                      <a
+                      <div
                         key={app.id}
-                        href={app.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        draggable
+                        role="button"
+                        onClick={(e) => handleCardClick(e, app.link)}
+                        draggable={dragActiveId === app.id}
                         onDragStart={(e) => handleDragStart(e, app.id)}
-                        onDragOver={(e) => handleDragOver(e, app.id)}
+                        onDragEnter={(e) => handleCardDragEnter(e, app.id)}
+                        onDragOver={(e) => handleCardDragOver(e, app.id)}
+                        onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                         onDragEnd={handleDragEnd}
-                        onDrop={(e) => handleDrop(e, app.id)}
-                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 cursor-grab active:cursor-grabbing ${
+                        onDrop={(e) => handleCardDrop(e, app.id)}
+                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 relative overflow-hidden cursor-pointer ${
                           draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                           dragOverAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                          dragOverImageAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                           `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                          <div className={`p-2 rounded-lg border flex-shrink-0 ${
-                            getCategoryStyles(app.category).iconBg
-                          }`}>
-                            <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4" />
+                        {/* Image drop overlay */}
+                        {dragOverImageAppId === app.id && (
+                          <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
+                            <span className="text-[10px] font-bold text-indigo-200">썸네일 드롭</span>
                           </div>
+                        )}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div 
+                            className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
+                            onMouseDown={() => setDragActiveId(app.id)}
+                            onMouseUp={() => setDragActiveId(null)}
+                            onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                          >
+                            <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          </div>
+                          {app.thumbnail ? (
+                            <div className="w-10 h-10 rounded-md overflow-hidden border border-neutral-200/10 dark:border-white/5 flex-shrink-0 bg-black/25">
+                              <img 
+                                src={app.thumbnail} 
+                                alt={app.title} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                referrerPolicy="no-referrer" 
+                              />
+                            </div>
+                          ) : (
+                            <div className={`p-2 rounded-lg border flex-shrink-0 ${
+                              getCategoryStyles(app.category).iconBg
+                            }`}>
+                              <DynamicIcon name={app.icon || 'Globe'} className="w-4 h-4" />
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                             <span className="text-[10px] text-neutral-500 font-mono font-semibold">#{app.order} 순번</span>
@@ -972,7 +1228,7 @@ export default function App() {
                         </div>
 
                         <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform group-hover:translate-x-1" />
-                      </a>
+                      </div>
                     ))
                   )}
                 </div>
@@ -1032,28 +1288,54 @@ export default function App() {
                           </div>
                         ) : (
                           catAppsSplit.map((app) => (
-                            <a
+                            <div
                               key={app.id}
-                              href={app.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              draggable
+                              role="button"
+                              onClick={(e) => handleCardClick(e, app.link)}
+                              draggable={dragActiveId === app.id}
                               onDragStart={(e) => handleDragStart(e, app.id)}
-                              onDragOver={(e) => handleDragOver(e, app.id)}
+                              onDragEnter={(e) => handleCardDragEnter(e, app.id)}
+                              onDragOver={(e) => handleCardDragOver(e, app.id)}
+                              onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                               onDragEnd={handleDragEnd}
-                              onDrop={(e) => handleDrop(e, app.id)}
-                              className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg ${catStyles.hoverBorder} cursor-grab active:cursor-grabbing ${
+                              onDrop={(e) => handleCardDrop(e, app.id)}
+                              className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg relative overflow-hidden ${catStyles.hoverBorder} cursor-pointer ${
                                 draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                                 dragOverAppId === app.id ? `scale-[1.02] ${catStyles.activeBorder} shadow-md` :
+                                dragOverImageAppId === app.id ? `scale-[1.01] ${catStyles.activeBorder} shadow-md ring-2 ring-indigo-500/20` :
                                 `${activeTheme.cardBg} ${activeTheme.border}`
                               }`}
                             >
+                              {/* Image drop overlay */}
+                              {dragOverImageAppId === app.id && (
+                                <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
+                                  <span className="text-[10px] font-bold text-indigo-200">썸네일 드롭</span>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                                  <div className={`p-1.5 rounded-lg ${catStyles.iconBg}`}>
-                                    <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                                  <div 
+                                    className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
+                                    onMouseDown={() => setDragActiveId(app.id)}
+                                    onMouseUp={() => setDragActiveId(null)}
+                                    onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                                  >
+                                    <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                   </div>
+                                  {app.thumbnail ? (
+                                    <div className="w-10 h-10 rounded-md overflow-hidden border border-neutral-200/10 dark:border-white/5 flex-shrink-0 bg-black/25">
+                                      <img 
+                                        src={app.thumbnail} 
+                                        alt={app.title} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                        referrerPolicy="no-referrer" 
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className={`p-1.5 rounded-lg ${catStyles.iconBg}`}>
+                                      <DynamicIcon name={app.icon || 'Globe'} className="w-3.5 h-3.5" />
+                                    </div>
+                                  )}
                                   <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                                 </div>
                                 <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
@@ -1063,7 +1345,7 @@ export default function App() {
                                   {app.description}
                                 </p>
                               )}
-                            </a>
+                            </div>
                           ))
                         )}
                       </div>

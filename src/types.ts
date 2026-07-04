@@ -13,6 +13,7 @@ export interface VibeApp {
   description?: string;
   tags?: string[];
   icon?: string;
+  thumbnail?: string;
 }
 
 export interface PortalConfig {

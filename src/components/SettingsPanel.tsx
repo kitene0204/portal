@@ -30,7 +30,9 @@ import {
   Smartphone,
   Compass,
   Activity,
-  Heart
+  Heart,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -89,6 +91,69 @@ export default function SettingsPanel({
   const [appDescription, setAppDescription] = useState('');
   const [appIcon, setAppIcon] = useState('Globe');
   const [appTagsInput, setAppTagsInput] = useState('');
+  const [appThumbnail, setAppThumbnail] = useState('');
+  const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
+
+  // Drag & Drop Apps list in Settings states
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleSettingsDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleSettingsDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (index !== draggedIndex && index !== dragOverIndex) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleSettingsDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newApps = [...apps];
+    const [draggedApp] = newApps.splice(draggedIndex, 1);
+    newApps.splice(targetIndex, 0, draggedApp);
+
+    // Re-index order within categories
+    const finalApps: VibeApp[] = [];
+    categories.forEach((cat) => {
+      const catApps = newApps.filter(a => a.category === cat.id);
+      catApps.forEach((app, i) => { app.order = i + 1; });
+      finalApps.push(...catApps);
+    });
+    const knownCategoryIds = categories.map(c => c.id);
+    const otherApps = newApps.filter(a => !knownCategoryIds.includes(a.category));
+    finalApps.push(...otherApps);
+
+    onSaveApps(finalApps);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleSettingsDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleFileProcess = (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      alert('이미지 파일 크기는 2MB 이하여야 합니다.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAppThumbnail(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Save General settings
   const handleSaveGeneral = () => {
@@ -235,6 +300,7 @@ export default function SettingsPanel({
     setAppDescription('');
     setAppIcon('Globe');
     setAppTagsInput('');
+    setAppThumbnail('');
   };
 
   // Edit App trigger
@@ -247,6 +313,7 @@ export default function SettingsPanel({
     setAppDescription(app.description || '');
     setAppIcon(app.icon || 'Globe');
     setAppTagsInput(app.tags ? app.tags.join(', ') : '');
+    setAppThumbnail(app.thumbnail || '');
   };
 
   // Save/Add App
@@ -271,7 +338,8 @@ export default function SettingsPanel({
             order: Number(appOrder),
             description: appDescription,
             icon: appIcon,
-            tags
+            tags,
+            thumbnail: appThumbnail
           };
         }
         return app;
@@ -299,7 +367,8 @@ export default function SettingsPanel({
         order: Number(appOrder),
         description: appDescription,
         icon: appIcon,
-        tags
+        tags,
+        thumbnail: appThumbnail
       };
       const updatedApps = [...apps, newApp];
 
@@ -702,6 +771,61 @@ export default function SettingsPanel({
                 </div>
 
                 <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1 font-medium">썸네일 이미지 업로드 (선택)</label>
+                  {appThumbnail ? (
+                    <div className="relative rounded-lg overflow-hidden border border-neutral-800 w-28 h-28 mx-auto bg-neutral-900">
+                      <img src={appThumbnail} alt="썸네일 프리뷰" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setAppThumbnail('')}
+                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-neutral-300 hover:text-white transition-colors cursor-pointer"
+                        title="썸네일 삭제"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingThumbnail(true);
+                      }}
+                      onDragLeave={() => setIsDraggingThumbnail(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingThumbnail(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) {
+                          handleFileProcess(file);
+                        }
+                      }}
+                      onClick={() => document.getElementById('thumbnail-file-input')?.click()}
+                      className={`border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                        isDraggingThumbnail
+                          ? 'border-indigo-500 bg-indigo-950/20 text-indigo-400'
+                          : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700 hover:bg-neutral-800/40 text-neutral-400 hover:text-neutral-300'
+                      }`}
+                    >
+                      <Upload className="w-5 h-5 opacity-70" />
+                      <div className="text-[10px] font-semibold text-center">드래그하거나 클릭하여 썸네일 업로드</div>
+                      <div className="text-[9px] text-neutral-500">PNG, JPG (최대 2MB)</div>
+                      <input
+                        id="thumbnail-file-input"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileProcess(file);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">설명 (간단히)</label>
                   <textarea
                     value={appDescription}
@@ -753,11 +877,22 @@ export default function SettingsPanel({
 
               <div className="space-y-2">
                 {apps.map((app, index) => {
+                  const isDragged = draggedIndex === index;
+                  const isDragOver = dragOverIndex === index;
+                  const isEditing = editingAppId === app.id;
+
                   return (
                     <div
                       key={app.id}
-                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all ${
-                        editingAppId === app.id
+                      draggable
+                      onDragStart={(e) => handleSettingsDragStart(e, index)}
+                      onDragOver={(e) => handleSettingsDragOver(e, index)}
+                      onDrop={(e) => handleSettingsDrop(e, index)}
+                      onDragEnd={handleSettingsDragEnd}
+                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all cursor-grab active:cursor-grabbing ${
+                        isDragged ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
+                        isDragOver ? 'scale-[1.01] border-indigo-500 bg-indigo-950/10 shadow-md shadow-indigo-500/10' :
+                        isEditing
                           ? 'border-indigo-500 bg-indigo-950/10'
                           : 'border-neutral-800 bg-neutral-950/30 hover:bg-neutral-950/60'
                       }`}
