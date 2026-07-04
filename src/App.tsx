@@ -871,8 +871,7 @@ export default function App() {
                         </span>
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
-                          onMouseDown={() => setDragActiveId(app.id)}
-                          onMouseUp={() => setDragActiveId(null)}
+                          onMouseEnter={() => setDragActiveId(app.id)}
                           onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
                         >
                           <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
@@ -977,8 +976,7 @@ export default function App() {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
-                          onMouseDown={() => setDragActiveId(app.id)}
-                          onMouseUp={() => setDragActiveId(null)}
+                          onMouseEnter={() => setDragActiveId(app.id)}
                           onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
                         >
                           <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
@@ -1199,8 +1197,7 @@ export default function App() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div 
                             className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
-                            onMouseDown={() => setDragActiveId(app.id)}
-                            onMouseUp={() => setDragActiveId(null)}
+                            onMouseEnter={() => setDragActiveId(app.id)}
                             onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
                           >
                             <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
@@ -1316,8 +1313,7 @@ export default function App() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <div 
                                     className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
-                                    onMouseDown={() => setDragActiveId(app.id)}
-                                    onMouseUp={() => setDragActiveId(null)}
+                                    onMouseEnter={() => setDragActiveId(app.id)}
                                     onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
                                   >
                                     <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />

@@ -32,7 +32,8 @@ import {
   Activity,
   Heart,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  GripVertical
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -97,6 +98,32 @@ export default function SettingsPanel({
   // Drag & Drop Apps list in Settings states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<any>(null);
+  const [draggableIndex, setDraggableIndex] = useState<number | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState<boolean>(false);
+
+  const startLongPress = (index: number) => {
+    if (longPressTimer) clearTimeout(longPressTimer);
+    const timer = setTimeout(() => {
+      setDraggableIndex(index);
+      setIsLongPressing(true);
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 250); // 250ms long press to enable drag
+    setLongPressTimer(timer);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    if (draggedIndex === null) {
+      setDraggableIndex(null);
+      setIsLongPressing(false);
+    }
+  };
 
   const handleSettingsDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -115,6 +142,8 @@ export default function SettingsPanel({
     if (draggedIndex === null || draggedIndex === targetIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
+      setDraggableIndex(null);
+      setIsLongPressing(false);
       return;
     }
 
@@ -136,11 +165,23 @@ export default function SettingsPanel({
     onSaveApps(finalApps);
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setDraggableIndex(null);
+    setIsLongPressing(false);
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
   };
 
   const handleSettingsDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setDraggableIndex(null);
+    setIsLongPressing(false);
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
   };
 
   const handleFileProcess = (file: File) => {
@@ -317,8 +358,8 @@ export default function SettingsPanel({
   };
 
   // Save/Add App
-  const handleSaveApp = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveApp = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!appTitle.trim() || !appLink.trim()) return;
 
     const tags = appTagsInput
@@ -847,21 +888,17 @@ export default function SettingsPanel({
                   />
                 </div>
 
-                <div className="flex gap-2 pt-1.5">
-                  <button
-                    type="submit"
-                    className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium transition-colors cursor-pointer"
-                  >
-                    {editingAppId ? '수정 완료하기' : '포털 항목 등록하기'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetAppForm}
-                    className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-md transition-colors cursor-pointer"
-                  >
-                    취소
-                  </button>
-                </div>
+                {editingAppId && (
+                  <div className="flex justify-end pt-1.5">
+                    <button
+                      type="button"
+                      onClick={resetAppForm}
+                      className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
+                    >
+                      수정 취소 (입력 초기화)
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
 
@@ -884,42 +921,53 @@ export default function SettingsPanel({
                   return (
                     <div
                       key={app.id}
-                      draggable
+                      draggable={draggableIndex === index}
                       onDragStart={(e) => handleSettingsDragStart(e, index)}
                       onDragOver={(e) => handleSettingsDragOver(e, index)}
                       onDrop={(e) => handleSettingsDrop(e, index)}
                       onDragEnd={handleSettingsDragEnd}
-                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all cursor-grab active:cursor-grabbing ${
+                      onMouseDown={() => startLongPress(index)}
+                      onMouseUp={cancelLongPress}
+                      onMouseLeave={cancelLongPress}
+                      onTouchStart={() => startLongPress(index)}
+                      onTouchEnd={cancelLongPress}
+                      onTouchMove={cancelLongPress}
+                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all select-none ${
                         isDragged ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                         isDragOver ? 'scale-[1.01] border-indigo-500 bg-indigo-950/10 shadow-md shadow-indigo-500/10' :
                         isEditing
                           ? 'border-indigo-500 bg-indigo-950/10'
-                          : 'border-neutral-800 bg-neutral-950/30 hover:bg-neutral-950/60'
+                          : draggableIndex === index
+                          ? 'border-indigo-500 bg-indigo-950/20 scale-[1.02] shadow-lg cursor-grabbing'
+                          : 'border-neutral-800 bg-neutral-950/30 hover:bg-neutral-950/60 cursor-pointer'
                       }`}
                     >
-                      <div className="flex-1 min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          {(() => {
-                            const foundCat = categories.find(c => c.id === app.category);
-                            const catName = foundCat ? foundCat.name : app.category;
-                            const isSchool = app.category === 'school';
-                            const isPersonal = app.category === 'personal';
-                            return (
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-tight ${
-                                isSchool
-                                  ? 'bg-sky-950 text-sky-400 border border-sky-900/50'
-                                  : isPersonal
-                                  ? 'bg-violet-950 text-violet-400 border border-violet-900/50'
-                                  : 'bg-emerald-950 text-emerald-400 border border-emerald-900/50'
-                              }`}>
-                                {catName}
-                              </span>
-                            );
-                          })()}
-                          <span className="text-neutral-500 font-mono text-[10px]">#{app.order}</span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                        <GripVertical className={`w-3.5 h-3.5 text-neutral-500/50 flex-shrink-0 transition-opacity ${draggableIndex === index ? 'opacity-100 text-indigo-400' : 'opacity-40 group-hover:opacity-100'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {(() => {
+                              const foundCat = categories.find(c => c.id === app.category);
+                              const catName = foundCat ? foundCat.name : app.category;
+                              const isSchool = app.category === 'school';
+                              const isPersonal = app.category === 'personal';
+                              return (
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-tight ${
+                                  isSchool
+                                    ? 'bg-sky-950 text-sky-400 border border-sky-900/50'
+                                    : isPersonal
+                                    ? 'bg-violet-950 text-violet-400 border border-violet-900/50'
+                                    : 'bg-emerald-950 text-emerald-400 border border-emerald-900/50'
+                                }`}>
+                                  {catName}
+                                </span>
+                              );
+                            })()}
+                            <span className="text-neutral-500 font-mono text-[10px]">#{app.order}</span>
+                          </div>
+                          <div className="font-medium text-neutral-200 mt-1 truncate">{app.title}</div>
+                          <div className="text-[10px] text-neutral-500 truncate mt-0.5 font-mono">{app.link}</div>
                         </div>
-                        <div className="font-medium text-neutral-200 mt-1 truncate">{app.title}</div>
-                        <div className="text-[10px] text-neutral-500 truncate mt-0.5 font-mono">{app.link}</div>
                       </div>
 
                       {/* Controls */}
@@ -972,6 +1020,10 @@ export default function SettingsPanel({
       <div className="p-4 border-t border-neutral-800 bg-neutral-950 flex items-center justify-end gap-3">
         <button
           onClick={() => {
+            // Automatically save the currently typed app details if the form is filled on the apps tab
+            if (activeTab === 'apps' && appTitle.trim() && appLink.trim()) {
+              handleSaveApp();
+            }
             handleSaveGeneral();
             onClose();
           }}
