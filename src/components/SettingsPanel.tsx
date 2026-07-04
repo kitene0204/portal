@@ -778,14 +778,22 @@ export default function SettingsPanel({
 
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 링크 URL *</label>
-                  <input
-                    type="url"
-                    required
-                    value={appLink}
-                    onChange={(e) => setAppLink(e.target.value)}
-                    placeholder="https://example.com/myapp"
-                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      required
+                      value={appLink}
+                      onChange={(e) => setAppLink(e.target.value)}
+                      placeholder="https://example.com/myapp"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      {editingAppId ? '수정 완료' : '등록'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
