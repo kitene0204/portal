@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useRef } from 'react';
 import { 
   VibeApp, 
   PortalConfig, 
@@ -94,6 +94,10 @@ export default function SettingsPanel({
   const [appTagsInput, setAppTagsInput] = useState('');
   const [appThumbnail, setAppThumbnail] = useState('');
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
+
+  // DOM Refs for scroll and focus handling
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const appTitleInputRef = useRef<HTMLInputElement>(null);
 
   // Drag & Drop Apps list in Settings states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -355,6 +359,16 @@ export default function SettingsPanel({
     setAppIcon(app.icon || 'Globe');
     setAppTagsInput(app.tags ? app.tags.join(', ') : '');
     setAppThumbnail(app.thumbnail || '');
+
+    // Scroll to the top of the panel to show the filled input form!
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (appTitleInputRef.current) {
+        appTitleInputRef.current.focus();
+      }
+    }, 100);
   };
 
   // Save/Add App
@@ -536,7 +550,7 @@ export default function SettingsPanel({
       </div>
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 space-y-6">
         {activeTab === 'general' && (
           <div className="space-y-6">
             {/* Portal Title Config */}
@@ -740,6 +754,7 @@ export default function SettingsPanel({
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 이름 *</label>
                   <input
+                    ref={appTitleInputRef}
                     type="text"
                     required
                     value={appTitle}
@@ -979,38 +994,57 @@ export default function SettingsPanel({
                       </div>
 
                       {/* Controls */}
-                      <div className="flex items-center gap-1">
+                      <div 
+                        className="flex items-center gap-1"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
-                          onClick={() => handleMoveUp(index)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveUp(index);
+                          }}
                           disabled={index === 0}
                           title="위로 이동"
-                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveDown(index)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveDown(index);
+                          }}
                           disabled={index === apps.length - 1}
                           title="아래로 이동"
-                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleStartEdit(app)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(app);
+                          }}
                           title="편집"
-                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-indigo-400 transition-colors"
+                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-indigo-400 transition-colors cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteApp(app.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteApp(app.id);
+                          }}
                           title="삭제"
-                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-rose-400 transition-colors"
+                          className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-rose-400 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
