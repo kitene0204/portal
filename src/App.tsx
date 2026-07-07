@@ -577,8 +577,19 @@ export default function App() {
           
           {/* Logo & Portal Title */}
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg transition-colors duration-300 ${activeTheme.accentBg}`}>
-              <Code className="w-5 h-5" />
+            <div className={`p-1.5 rounded-lg transition-all duration-300 ${activeTheme.accentBg} flex items-center justify-center w-9 h-9 shadow-md shadow-indigo-500/10`}>
+              <svg className="w-6 h-6 text-indigo-200" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#c084fc" />
+                  </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="6" opacity="0.3" />
+                <circle cx="50" cy="50" r="35" stroke="currentColor" strokeWidth="2" strokeDasharray="5,3" opacity="0.5" />
+                <path d="M 30,35 L 45,65 C 47,70 53,70 55,65 L 70,35" stroke="url(#headerGrad)" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="50" cy="46" r="6" fill="#f43f5e" />
+              </svg>
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight md:text-base">
