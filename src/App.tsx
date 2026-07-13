@@ -59,11 +59,26 @@ export default function App() {
   // Drag & Drop Reordering States
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
   const [dragOverAppId, setDragOverAppId] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const isDraggingFromHandleRef = React.useRef<string | null>(null);
 
   // Drag & Drop Image/Thumbnail States
   const [dragOverImageAppId, setDragOverImageAppId] = useState<string | null>(null);
+
+  // Synchronously reset handle dragging reference on window release
+  useEffect(() => {
+    const handleGlobalRelease = () => {
+      isDraggingFromHandleRef.current = null;
+    };
+    window.addEventListener('mouseup', handleGlobalRelease);
+    window.addEventListener('touchend', handleGlobalRelease);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalRelease);
+      window.removeEventListener('touchend', handleGlobalRelease);
+    };
+  }, []);
 
   const handleCardDragEnter = (e: React.DragEvent, id: string) => {
     e.preventDefault();
@@ -89,8 +104,31 @@ export default function App() {
         setDragOverImageAppId(id);
       }
     } else {
-      if (id !== draggedAppId && dragOverAppId !== id) {
+      if (id === draggedAppId) {
+        setDragOverAppId(null);
+        setDragOverPosition(null);
+        return;
+      }
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const isHorizontal = config.layoutId === 'grid' || config.layoutId === 'split';
+      
+      let position: 'before' | 'after' = 'before';
+      if (isHorizontal) {
+        const mouseX = e.clientX - rect.left;
+        if (mouseX > rect.width / 2) {
+          position = 'after';
+        }
+      } else {
+        const mouseY = e.clientY - rect.top;
+        if (mouseY > rect.height / 2) {
+          position = 'after';
+        }
+      }
+
+      if (dragOverAppId !== id || dragOverPosition !== position) {
         setDragOverAppId(id);
+        setDragOverPosition(position);
       }
     }
   };
@@ -100,6 +138,7 @@ export default function App() {
     if (draggedAppId) {
       if (dragOverAppId === id) {
         setDragOverAppId(null);
+        setDragOverPosition(null);
       }
     } else {
       if (dragOverImageAppId === id) {
@@ -139,6 +178,7 @@ export default function App() {
 
   const handleCardDrop = async (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    e.stopPropagation();
     if (draggedAppId) {
       await handleDrop(e, id);
     } else {
@@ -207,7 +247,9 @@ export default function App() {
   const handleDragEnd = () => {
     setDraggedAppId(null);
     setDragOverAppId(null);
+    setDragOverPosition(null);
     setDragActiveId(null);
+    isDraggingFromHandleRef.current = null;
     setTimeout(() => {
       setIsDraggingState(false);
     }, 100);
@@ -223,33 +265,42 @@ export default function App() {
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!draggedAppId || draggedAppId === targetId) {
       setDraggedAppId(null);
       setDragOverAppId(null);
+      setDragOverPosition(null);
       return;
     }
 
-    const updatedApps = [...data.apps];
+    // Deep copy apps to prevent state mutations
+    const updatedApps = data.apps.map(app => ({ ...app }));
     const draggedIndex = updatedApps.findIndex(a => a.id === draggedAppId);
-    const targetIndex = updatedApps.findIndex(a => a.id === targetId);
 
-    if (draggedIndex !== -1 && targetIndex !== -1) {
+    if (draggedIndex !== -1) {
       const draggedApp = updatedApps[draggedIndex];
-      const targetApp = updatedApps[targetIndex];
-
-      // If categories differ, move to target's category
-      if (draggedApp.category !== targetApp.category) {
-        draggedApp.category = targetApp.category;
-      }
 
       // Remove from original position
       updatedApps.splice(draggedIndex, 1);
+
+      // Find target's index in the modified list
+      const targetIndex = updatedApps.findIndex(a => a.id === targetId);
       
-      // Find new target index in the modified array
-      const newTargetIndex = updatedApps.findIndex(a => a.id === targetId);
-      
-      // Insert
-      updatedApps.splice(newTargetIndex, 0, draggedApp);
+      if (targetIndex !== -1) {
+        const targetApp = updatedApps[targetIndex];
+
+        // Match target category
+        if (draggedApp.category !== targetApp.category) {
+          draggedApp.category = targetApp.category;
+        }
+
+        // Insert based on relative cursor position (before or after)
+        const insertIndex = dragOverPosition === 'after' ? targetIndex + 1 : targetIndex;
+        updatedApps.splice(insertIndex, 0, draggedApp);
+      } else {
+        // Fallback
+        updatedApps.push(draggedApp);
+      }
 
       // Re-index all categories
       const defaultCategories: CategoryTab[] = [
@@ -291,13 +342,16 @@ export default function App() {
 
     setDraggedAppId(null);
     setDragOverAppId(null);
+    setDragOverPosition(null);
   };
 
   const handleColumnDrop = async (e: React.DragEvent, category: string) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!draggedAppId) return;
 
-    const updatedApps = [...data.apps];
+    // Deep copy apps
+    const updatedApps = data.apps.map(app => ({ ...app }));
     const draggedIndex = updatedApps.findIndex(a => a.id === draggedAppId);
     if (draggedIndex !== -1) {
       const draggedApp = updatedApps[draggedIndex];
@@ -350,6 +404,7 @@ export default function App() {
 
     setDraggedAppId(null);
     setDragOverAppId(null);
+    setDragOverPosition(null);
   };
 
   const toggleThemeMode = async () => {
@@ -844,7 +899,7 @@ export default function App() {
                     key={app.id}
                     role="button"
                     onClick={(e) => handleCardClick(e, app.link)}
-                    draggable={dragActiveId === app.id}
+                    draggable={true}
                     onDragStart={(e) => handleDragStart(e, app.id)}
                     onDragEnter={(e) => handleCardDragEnter(e, app.id)}
                     onDragOver={(e) => handleCardDragOver(e, app.id)}
@@ -852,12 +907,24 @@ export default function App() {
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleCardDrop(e, app.id)}
                     className={`group p-6 rounded-2xl border transition-all duration-500 block relative hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/10 cursor-pointer ${
-                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                      dragOverAppId === app.id ? 'scale-[1.03] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95' :
+                      dragOverAppId === app.id ? 'border-indigo-500 shadow-xl shadow-indigo-500/10' :
                       dragOverImageAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-lg shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                       `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
+                    {/* Beautiful Insertion Divider Line */}
+                    {dragOverAppId === app.id && draggedAppId !== app.id && dragOverPosition && (
+                      <div 
+                        className={`absolute z-30 pointer-events-none transition-all duration-200 bg-gradient-to-r sm:bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] rounded-full animate-pulse ${
+                          dragOverPosition === 'before'
+                            ? '-top-3.5 left-0 right-0 h-1 sm:h-auto sm:top-0 sm:bottom-0 sm:-left-3.5 sm:w-1'
+                            : '-bottom-3.5 left-0 right-0 h-1 sm:h-auto sm:top-0 sm:bottom-0 sm:-right-3.5 sm:w-1'
+                        }`}
+                      >
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-500 shadow-[0_0_6px_rgba(255,255,255,1)]" />
+                      </div>
+                    )}
                     {/* Image drop overlay */}
                     {dragOverImageAppId === app.id && (
                       <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
@@ -882,8 +949,10 @@ export default function App() {
                         </span>
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
-                          onMouseEnter={() => setDragActiveId(app.id)}
-                          onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                          onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
+                          onTouchStart={() => { isDraggingFromHandleRef.current = app.id; }}
+                          onMouseUp={() => { isDraggingFromHandleRef.current = null; }}
+                          onTouchEnd={() => { isDraggingFromHandleRef.current = null; }}
                         >
                           <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -960,20 +1029,32 @@ export default function App() {
                 {filteredApps.map((app) => (
                   <div
                     key={app.id}
-                    draggable={dragActiveId === app.id}
+                    draggable={true}
                     onDragStart={(e) => handleDragStart(e, app.id)}
                     onDragEnter={(e) => handleCardDragEnter(e, app.id)}
                     onDragOver={(e) => handleCardDragOver(e, app.id)}
                     onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleCardDrop(e, app.id)}
-                    className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 relative overflow-hidden ${
-                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                      dragOverAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                    className={`group p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 relative ${
+                      draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95' :
+                      dragOverAppId === app.id ? 'border-indigo-500 shadow-md shadow-indigo-500/10' :
                       dragOverImageAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                       `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                     }`}
                   >
+                    {/* Beautiful Insertion Divider Line - Horizontal */}
+                    {dragOverAppId === app.id && draggedAppId !== app.id && dragOverPosition && (
+                      <div 
+                        className={`absolute left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] z-30 rounded-full animate-pulse pointer-events-none ${
+                          dragOverPosition === 'before'
+                            ? '-top-2.5'
+                            : '-bottom-2.5'
+                        }`}
+                      >
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-500 shadow-[0_0_6px_rgba(255,255,255,1)]" />
+                      </div>
+                    )}
                     {/* Image drop overlay */}
                     {dragOverImageAppId === app.id && (
                       <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
@@ -987,8 +1068,10 @@ export default function App() {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
-                          onMouseEnter={() => setDragActiveId(app.id)}
-                          onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                          onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
+                          onTouchStart={() => { isDraggingFromHandleRef.current = app.id; }}
+                          onMouseUp={() => { isDraggingFromHandleRef.current = null; }}
+                          onTouchEnd={() => { isDraggingFromHandleRef.current = null; }}
                         >
                           <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -1074,20 +1157,32 @@ export default function App() {
                 {filteredApps.length > 0 && (
                   <div className="lg:col-span-7 flex flex-col">
                     <div
-                      draggable
+                      draggable={true}
                       onDragStart={(e) => handleDragStart(e, filteredApps[0].id)}
                       onDragEnter={(e) => handleCardDragEnter(e, filteredApps[0].id)}
                       onDragOver={(e) => handleCardDragOver(e, filteredApps[0].id)}
                       onDragLeave={(e) => handleCardDragLeave(e, filteredApps[0].id)}
                       onDragEnd={handleDragEnd}
                       onDrop={(e) => handleCardDrop(e, filteredApps[0].id)}
-                      className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-500 shadow-xl relative overflow-hidden group cursor-grab active:cursor-grabbing ${
-                        draggedAppId === filteredApps[0].id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                        dragOverAppId === filteredApps[0].id ? 'scale-[1.02] border-indigo-500 shadow-xl shadow-indigo-500/20' :
+                      className={`p-8 rounded-3xl border flex-1 flex flex-col justify-between transition-all duration-500 shadow-xl relative group cursor-grab active:cursor-grabbing ${
+                        draggedAppId === filteredApps[0].id ? 'opacity-30 border-dashed border-neutral-700 scale-95' :
+                        dragOverAppId === filteredApps[0].id ? 'border-indigo-500 shadow-xl shadow-indigo-500/10' :
                         dragOverImageAppId === filteredApps[0].id ? 'scale-[1.01] border-indigo-500 shadow-xl shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                         `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(filteredApps[0].category).hoverBorder}`
                       }`}
                     >
+                      {/* Beautiful Insertion Divider Line */}
+                      {dragOverAppId === filteredApps[0].id && draggedAppId !== filteredApps[0].id && dragOverPosition && (
+                        <div 
+                          className={`absolute z-30 pointer-events-none transition-all duration-200 bg-gradient-to-r sm:bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] rounded-full animate-pulse ${
+                            dragOverPosition === 'before'
+                              ? '-top-4 left-0 right-0 h-1 sm:h-auto sm:top-0 sm:bottom-0 sm:-left-4.5 sm:w-1'
+                              : '-bottom-4 left-0 right-0 h-1 sm:h-auto sm:top-0 sm:bottom-0 sm:-right-4.5 sm:w-1'
+                          }`}
+                        >
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-500 shadow-[0_0_6px_rgba(255,255,255,1)]" />
+                        </div>
+                      )}
                       {/* Image drop overlay */}
                       {dragOverImageAppId === filteredApps[0].id && (
                         <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center gap-2 border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
@@ -1111,7 +1206,15 @@ export default function App() {
                            </span>
                            <div className="flex items-center gap-1.5">
                              <span className="font-mono text-xs text-neutral-400 font-bold">#{filteredApps[0].order} 순위</span>
-                             <GripVertical className="w-4 h-4 text-slate-500/40 opacity-40 group-hover:opacity-100 transition-opacity" />
+                             <div 
+                               className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
+                               onMouseDown={() => { isDraggingFromHandleRef.current = filteredApps[0].id; }}
+                               onTouchStart={() => { isDraggingFromHandleRef.current = filteredApps[0].id; }}
+                               onMouseUp={() => { isDraggingFromHandleRef.current = null; }}
+                               onTouchEnd={() => { isDraggingFromHandleRef.current = null; }}
+                             >
+                               <GripVertical className="w-4 h-4 text-slate-500/40 opacity-40 group-hover:opacity-100 transition-opacity" />
+                             </div>
                            </div>
                          </div>
 
@@ -1185,20 +1288,32 @@ export default function App() {
                         key={app.id}
                         role="button"
                         onClick={(e) => handleCardClick(e, app.link)}
-                        draggable={dragActiveId === app.id}
+                        draggable={true}
                         onDragStart={(e) => handleDragStart(e, app.id)}
                         onDragEnter={(e) => handleCardDragEnter(e, app.id)}
                         onDragOver={(e) => handleCardDragOver(e, app.id)}
                         onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                         onDragEnd={handleDragEnd}
                         onDrop={(e) => handleCardDrop(e, app.id)}
-                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 relative overflow-hidden cursor-pointer ${
-                          draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                          dragOverAppId === app.id ? 'scale-[1.02] border-indigo-500 shadow-md shadow-indigo-500/20' :
+                        className={`group p-4 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 hover:translate-x-2 relative cursor-pointer ${
+                          draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95' :
+                          dragOverAppId === app.id ? 'border-indigo-500 shadow-md shadow-indigo-500/10' :
                           dragOverImageAppId === app.id ? 'scale-[1.01] border-indigo-500 shadow-md shadow-indigo-500/20 ring-2 ring-indigo-500/20' :
                           `${activeTheme.cardBg} ${activeTheme.border} ${getCategoryStyles(app.category).hoverBorder}`
                         }`}
                       >
+                        {/* Beautiful Insertion Divider Line - Horizontal */}
+                        {dragOverAppId === app.id && draggedAppId !== app.id && dragOverPosition && (
+                          <div 
+                            className={`absolute left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] z-30 rounded-full animate-pulse pointer-events-none ${
+                              dragOverPosition === 'before'
+                                ? '-top-2.5'
+                                : '-bottom-2.5'
+                            }`}
+                          >
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-500 shadow-[0_0_6px_rgba(255,255,255,1)]" />
+                          </div>
+                        )}
                         {/* Image drop overlay */}
                         {dragOverImageAppId === app.id && (
                           <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
@@ -1208,8 +1323,10 @@ export default function App() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div 
                             className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
-                            onMouseEnter={() => setDragActiveId(app.id)}
-                            onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                            onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
+                            onTouchStart={() => { isDraggingFromHandleRef.current = app.id; }}
+                            onMouseUp={() => { isDraggingFromHandleRef.current = null; }}
+                            onTouchEnd={() => { isDraggingFromHandleRef.current = null; }}
                           >
                             <GripVertical className="w-4 h-4 text-slate-500/50 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                           </div>
@@ -1300,20 +1417,32 @@ export default function App() {
                               key={app.id}
                               role="button"
                               onClick={(e) => handleCardClick(e, app.link)}
-                              draggable={dragActiveId === app.id}
+                              draggable={true}
                               onDragStart={(e) => handleDragStart(e, app.id)}
                               onDragEnter={(e) => handleCardDragEnter(e, app.id)}
                               onDragOver={(e) => handleCardDragOver(e, app.id)}
                               onDragLeave={(e) => handleCardDragLeave(e, app.id)}
                               onDragEnd={handleDragEnd}
                               onDrop={(e) => handleCardDrop(e, app.id)}
-                              className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg relative overflow-hidden ${catStyles.hoverBorder} cursor-pointer ${
-                                draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
-                                dragOverAppId === app.id ? `scale-[1.02] ${catStyles.activeBorder} shadow-md` :
+                              className={`group p-4 rounded-2xl border block transition-all duration-300 hover:shadow-lg relative ${catStyles.hoverBorder} cursor-pointer ${
+                                draggedAppId === app.id ? 'opacity-30 border-dashed border-neutral-700 scale-95' :
+                                dragOverAppId === app.id ? `${catStyles.activeBorder} shadow-md` :
                                 dragOverImageAppId === app.id ? `scale-[1.01] ${catStyles.activeBorder} shadow-md ring-2 ring-indigo-500/20` :
                                 `${activeTheme.cardBg} ${activeTheme.border}`
                               }`}
                             >
+                              {/* Beautiful Insertion Divider Line - Horizontal */}
+                              {dragOverAppId === app.id && draggedAppId !== app.id && dragOverPosition && (
+                                <div 
+                                  className={`absolute left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] z-30 rounded-full animate-pulse pointer-events-none ${
+                                    dragOverPosition === 'before'
+                                      ? '-top-2'
+                                      : '-bottom-2'
+                                  }`}
+                                >
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-500 shadow-[0_0_6px_rgba(255,255,255,1)]" />
+                                </div>
+                              )}
                               {/* Image drop overlay */}
                               {dragOverImageAppId === app.id && (
                                 <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-indigo-500 z-50 animate-fade-in pointer-events-none">
@@ -1324,8 +1453,10 @@ export default function App() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <div 
                                     className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors flex-shrink-0"
-                                    onMouseEnter={() => setDragActiveId(app.id)}
-                                    onMouseLeave={() => { if (!draggedAppId) setDragActiveId(null); }}
+                                    onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
+                                    onTouchStart={() => { isDraggingFromHandleRef.current = app.id; }}
+                                    onMouseUp={() => { isDraggingFromHandleRef.current = null; }}
+                                    onTouchEnd={() => { isDraggingFromHandleRef.current = null; }}
                                   >
                                     <GripVertical className="w-3.5 h-3.5 text-slate-500/55 opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                   </div>

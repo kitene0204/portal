@@ -102,32 +102,8 @@ export default function SettingsPanel({
   // Drag & Drop Apps list in Settings states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [longPressTimer, setLongPressTimer] = useState<any>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null);
   const [draggableIndex, setDraggableIndex] = useState<number | null>(null);
-  const [isLongPressing, setIsLongPressing] = useState<boolean>(false);
-
-  const startLongPress = (index: number) => {
-    if (longPressTimer) clearTimeout(longPressTimer);
-    const timer = setTimeout(() => {
-      setDraggableIndex(index);
-      setIsLongPressing(true);
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 250); // 250ms long press to enable drag
-    setLongPressTimer(timer);
-  };
-
-  const cancelLongPress = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-    if (draggedIndex === null) {
-      setDraggableIndex(null);
-      setIsLongPressing(false);
-    }
-  };
 
   const handleSettingsDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -136,8 +112,21 @@ export default function SettingsPanel({
 
   const handleSettingsDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (index !== draggedIndex && index !== dragOverIndex) {
+    if (draggedIndex === null) return;
+
+    if (index === draggedIndex) {
+      setDragOverIndex(null);
+      setDragOverPosition(null);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseY = e.clientY - rect.top;
+    const position = mouseY > rect.height / 2 ? 'after' : 'before';
+
+    if (dragOverIndex !== index || dragOverPosition !== position) {
       setDragOverIndex(index);
+      setDragOverPosition(position);
     }
   };
 
@@ -146,46 +135,45 @@ export default function SettingsPanel({
     if (draggedIndex === null || draggedIndex === targetIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
+      setDragOverPosition(null);
       setDraggableIndex(null);
-      setIsLongPressing(false);
       return;
     }
 
-    const newApps = [...apps];
-    const [draggedApp] = newApps.splice(draggedIndex, 1);
-    newApps.splice(targetIndex, 0, draggedApp);
+    const originalDraggedApp = apps[draggedIndex];
+    const filteredAppsList = apps.filter((_, idx) => idx !== draggedIndex);
+
+    let adjustedTargetIndex = targetIndex;
+    if (draggedIndex < targetIndex) {
+      adjustedTargetIndex = targetIndex - 1;
+    }
+
+    const finalInsertIndex = dragOverPosition === 'after' ? adjustedTargetIndex + 1 : adjustedTargetIndex;
+    filteredAppsList.splice(finalInsertIndex, 0, originalDraggedApp);
 
     // Re-index order within categories
     const finalApps: VibeApp[] = [];
     categories.forEach((cat) => {
-      const catApps = newApps.filter(a => a.category === cat.id);
+      const catApps = filteredAppsList.filter(a => a.category === cat.id);
       catApps.forEach((app, i) => { app.order = i + 1; });
       finalApps.push(...catApps);
     });
     const knownCategoryIds = categories.map(c => c.id);
-    const otherApps = newApps.filter(a => !knownCategoryIds.includes(a.category));
+    const otherApps = filteredAppsList.filter(a => !knownCategoryIds.includes(a.category));
     finalApps.push(...otherApps);
 
     onSaveApps(finalApps);
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setDragOverPosition(null);
     setDraggableIndex(null);
-    setIsLongPressing(false);
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
   };
 
   const handleSettingsDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setDragOverPosition(null);
     setDraggableIndex(null);
-    setIsLongPressing(false);
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
   };
 
   const handleFileProcess = (file: File) => {
@@ -949,13 +937,7 @@ export default function SettingsPanel({
                       onDragOver={(e) => handleSettingsDragOver(e, index)}
                       onDrop={(e) => handleSettingsDrop(e, index)}
                       onDragEnd={handleSettingsDragEnd}
-                      onMouseDown={() => startLongPress(index)}
-                      onMouseUp={cancelLongPress}
-                      onMouseLeave={cancelLongPress}
-                      onTouchStart={() => startLongPress(index)}
-                      onTouchEnd={cancelLongPress}
-                      onTouchMove={cancelLongPress}
-                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all select-none ${
+                      className={`p-3 rounded-lg border flex items-center justify-between text-xs transition-all select-none relative ${
                         isDragged ? 'opacity-30 border-dashed border-neutral-700 scale-95 pointer-events-none' :
                         isDragOver ? 'scale-[1.01] border-indigo-500 bg-indigo-950/10 shadow-md shadow-indigo-500/10' :
                         isEditing
@@ -965,8 +947,28 @@ export default function SettingsPanel({
                           : 'border-neutral-800 bg-neutral-950/30 hover:bg-neutral-950/60 cursor-pointer'
                       }`}
                     >
+                      {/* Beautiful Insertion Divider Line - Settings Panel */}
+                      {isDragOver && draggedIndex !== index && dragOverPosition && (
+                        <div 
+                          className={`absolute left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] z-30 rounded-full animate-pulse pointer-events-none ${
+                            dragOverPosition === 'before'
+                              ? '-top-1'
+                              : '-bottom-1'
+                          }`}
+                        >
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white border border-indigo-500 shadow-[0_0_4px_rgba(255,255,255,1)]" />
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                        <GripVertical className={`w-3.5 h-3.5 text-neutral-500/50 flex-shrink-0 transition-opacity ${draggableIndex === index ? 'opacity-100 text-indigo-400' : 'opacity-40 group-hover:opacity-100'}`} />
+                        <div
+                          className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/30 rounded transition-colors flex-shrink-0"
+                          onMouseDown={() => setDraggableIndex(index)}
+                          onTouchStart={() => setDraggableIndex(index)}
+                          onMouseUp={() => setDraggableIndex(null)}
+                          onTouchEnd={() => setDraggableIndex(null)}
+                        >
+                          <GripVertical className={`w-3.5 h-3.5 text-neutral-500/50 flex-shrink-0 transition-opacity ${draggableIndex === index ? 'opacity-100 text-indigo-400' : 'opacity-40 group-hover:opacity-100'}`} />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             {(() => {
