@@ -106,6 +106,10 @@ export default function SettingsPanel({
   const [draggableIndex, setDraggableIndex] = useState<number | null>(null);
 
   const handleSettingsDragStart = (e: React.DragEvent, index: number) => {
+    if (draggableIndex !== index) {
+      e.preventDefault();
+      return;
+    }
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -932,7 +936,7 @@ export default function SettingsPanel({
                   return (
                     <div
                       key={app.id}
-                      draggable={draggableIndex === index}
+                      draggable={true}
                       onDragStart={(e) => handleSettingsDragStart(e, index)}
                       onDragOver={(e) => handleSettingsDragOver(e, index)}
                       onDrop={(e) => handleSettingsDrop(e, index)}

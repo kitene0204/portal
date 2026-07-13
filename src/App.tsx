@@ -64,6 +64,11 @@ export default function App() {
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
   const isDraggingFromHandleRef = React.useRef<string | null>(null);
 
+  // Drag & Drop Category States
+  const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
+  const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
+  const [dragOverCatPosition, setDragOverCatPosition] = useState<'before' | 'after' | null>(null);
+
   // Drag & Drop Image/Thumbnail States
   const [dragOverImageAppId, setDragOverImageAppId] = useState<string | null>(null);
 
@@ -79,6 +84,68 @@ export default function App() {
       window.removeEventListener('touchend', handleGlobalRelease);
     };
   }, []);
+
+  const handleCatDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedCatId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCatDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id === draggedCatId) {
+      setDragOverCatId(null);
+      setDragOverCatPosition(null);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const position = mouseX > rect.width / 2 ? 'after' : 'before';
+
+    if (dragOverCatId !== id || dragOverCatPosition !== position) {
+      setDragOverCatId(id);
+      setDragOverCatPosition(position);
+    }
+  };
+
+  const handleCatDragEnd = () => {
+    setDraggedCatId(null);
+    setDragOverCatId(null);
+    setDragOverCatPosition(null);
+  };
+
+  const handleCatDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedCatId || draggedCatId === targetId) {
+      setDraggedCatId(null);
+      setDragOverCatId(null);
+      setDragOverCatPosition(null);
+      return;
+    }
+
+    const updatedCategories = [...categories];
+    const draggedIndex = updatedCategories.findIndex(c => c.id === draggedCatId);
+    if (draggedIndex !== -1) {
+      const [draggedCat] = updatedCategories.splice(draggedIndex, 1);
+      const targetIndex = updatedCategories.findIndex(c => c.id === targetId);
+      
+      let insertIndex = targetIndex;
+      if (dragOverCatPosition === 'after') {
+        insertIndex = targetIndex + 1;
+      }
+      updatedCategories.splice(insertIndex, 0, draggedCat);
+
+      // Save updated categories to config
+      await handleSaveConfig({
+        ...config,
+        categories: updatedCategories
+      });
+    }
+
+    setDraggedCatId(null);
+    setDragOverCatId(null);
+    setDragOverCatPosition(null);
+  };
 
   const handleCardDragEnter = (e: React.DragEvent, id: string) => {
     e.preventDefault();
@@ -821,12 +888,29 @@ export default function App() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveTab(cat.id)}
+                  draggable={true}
+                  onDragStart={(e) => handleCatDragStart(e, cat.id)}
+                  onDragOver={(e) => handleCatDragOver(e, cat.id)}
+                  onDragEnd={handleCatDragEnd}
+                  onDrop={(e) => handleCatDrop(e, cat.id)}
                   className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                     isSelected
                       ? 'text-slate-100 font-extrabold'
                       : 'text-neutral-400 hover:text-slate-200'
-                  }`}
+                  } ${draggedCatId === cat.id ? 'opacity-30 border-dashed border-indigo-500/30 scale-95' : ''}`}
                 >
+                  {/* Beautiful Vertical Insertion Divider Line for Category Tabs */}
+                  {dragOverCatId === cat.id && draggedCatId !== cat.id && dragOverCatPosition && (
+                    <div 
+                      className={`absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] z-30 animate-pulse pointer-events-none ${
+                        dragOverCatPosition === 'before'
+                          ? 'left-0'
+                          : 'right-0'
+                      }`}
+                    >
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white border border-indigo-500 shadow-[0_0_4px_rgba(255,255,255,1)]" />
+                    </div>
+                  )}
                   {isSelected && (
                     <motion.span
                       layoutId="activeTabGlow"
