@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useRef } from 'react';
+import React, { useState, FormEvent, useRef, useEffect } from 'react';
 import { 
   VibeApp, 
   PortalConfig, 
@@ -42,6 +42,8 @@ interface SettingsPanelProps {
   onSaveConfig: (config: PortalConfig) => void;
   onSaveApps: (apps: VibeApp[]) => void;
   onClose: () => void;
+  initialTab?: 'general' | 'apps';
+  initialEditingAppId?: string | null;
 }
 
 const POPULAR_ICONS = [
@@ -64,9 +66,11 @@ export default function SettingsPanel({
   apps,
   onSaveConfig,
   onSaveApps,
-  onClose
+  onClose,
+  initialTab = 'general',
+  initialEditingAppId = null
 }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'general' | 'apps'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'apps'>(initialTab);
   const [portalTitle, setPortalTitle] = useState(config.portalTitle);
   const [layoutId, setLayoutId] = useState(config.layoutId);
   const [themeId, setThemeId] = useState(config.themeId);
@@ -98,6 +102,17 @@ export default function SettingsPanel({
   // DOM Refs for scroll and focus handling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const appTitleInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto edit initial app if provided
+  useEffect(() => {
+    if (initialEditingAppId) {
+      const targetApp = apps.find(a => a.id === initialEditingAppId);
+      if (targetApp) {
+        setActiveTab('apps');
+        handleStartEdit(targetApp);
+      }
+    }
+  }, [initialEditingAppId]);
 
   // Drag & Drop Apps list in Settings states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

@@ -50,6 +50,14 @@ export default function App() {
   // Modals & Panels
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'general' | 'apps'>('general');
+  const [settingsEditingAppId, setSettingsEditingAppId] = useState<string | null>(null);
+
+  const handleOpenAppEdit = (appId: string) => {
+    setSettingsInitialTab('apps');
+    setSettingsEditingAppId(appId);
+    setShowSettings(true);
+  };
   
   // Sync Statuses
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -779,7 +787,11 @@ export default function App() {
 
             {/* Settings button in the top right */}
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => {
+                setSettingsInitialTab('general');
+                setSettingsEditingAppId(null);
+                setShowSettings(true);
+              }}
               id="settings-trigger-btn"
               className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer transition-all duration-300 ${activeTheme.primaryBtn}`}
             >
@@ -951,7 +963,11 @@ export default function App() {
             </p>
             {!searchQuery && (
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={() => {
+                  setSettingsInitialTab('apps');
+                  setSettingsEditingAppId(null);
+                  setShowSettings(true);
+                }}
                 className="mt-5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm shadow-indigo-950/10"
               >
                 첫 웹앱 등록하기
@@ -1031,6 +1047,17 @@ export default function App() {
                         <span className="font-mono text-[10px] text-neutral-500 font-bold">
                           #{app.order}
                         </span>
+                        <button
+                          type="button"
+                          title="웹앱 세부사항 수정"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAppEdit(app.id);
+                          }}
+                          className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded-md transition-colors cursor-pointer group/editbtn"
+                        >
+                          <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
+                        </button>
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
                           onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
@@ -1211,7 +1238,18 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex-shrink-0 flex items-center justify-end">
+                    <div className="flex-shrink-0 flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        title="웹앱 세부사항 수정"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenAppEdit(app.id);
+                        }}
+                        className="p-2.5 rounded-xl border border-neutral-800 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-neutral-400 hover:text-indigo-300 transition-all cursor-pointer group/editbtn"
+                      >
+                        <Settings className="w-4 h-4 transition-transform group-hover/editbtn:rotate-45" />
+                      </button>
                       <a
                         href={app.link}
                         target="_blank"
@@ -1290,6 +1328,17 @@ export default function App() {
                            </span>
                            <div className="flex items-center gap-1.5">
                              <span className="font-mono text-xs text-neutral-400 font-bold">#{filteredApps[0].order} 순위</span>
+                             <button
+                               type="button"
+                               title="웹앱 세부사항 수정"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleOpenAppEdit(filteredApps[0].id);
+                               }}
+                               className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded-lg transition-colors cursor-pointer group/editbtn"
+                             >
+                               <Settings className="w-4 h-4 transition-transform group-hover/editbtn:rotate-45" />
+                             </button>
                              <div 
                                className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
                                onMouseDown={() => { isDraggingFromHandleRef.current = filteredApps[0].id; }}
@@ -1436,7 +1485,20 @@ export default function App() {
                           </div>
                         </div>
 
-                        <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform group-hover:translate-x-1" />
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            title="웹앱 세부사항 수정"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAppEdit(app.id);
+                            }}
+                            className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded transition-colors cursor-pointer group/editbtn"
+                          >
+                            <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform group-hover:translate-x-1" />
+                        </div>
                       </div>
                     ))
                   )}
@@ -1560,7 +1622,20 @@ export default function App() {
                                   )}
                                   <h4 className={`text-xs font-bold font-display truncate ${activeTheme.text}`}>{app.title}</h4>
                                 </div>
-                                <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className="font-mono text-[9px] text-neutral-500 font-bold">#{app.order}</span>
+                                  <button
+                                    type="button"
+                                    title="웹앱 세부사항 수정"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenAppEdit(app.id);
+                                    }}
+                                    className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded transition-colors cursor-pointer group/editbtn"
+                                  >
+                                    <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
+                                  </button>
+                                </div>
                               </div>
                               {app.description && (
                                 <p className={`text-[11px] mt-2.5 line-clamp-2 leading-relaxed font-medium ${activeTheme.textMuted}`}>
@@ -1616,6 +1691,8 @@ export default function App() {
                 onSaveConfig={handleSaveConfig}
                 onSaveApps={handleSaveApps}
                 onClose={() => setShowSettings(false)}
+                initialTab={settingsInitialTab}
+                initialEditingAppId={settingsEditingAppId}
               />
             </motion.div>
           </>
