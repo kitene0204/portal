@@ -44,6 +44,7 @@ import {
   isSupabaseConfigured,
   SQL_CREATION_SCRIPT 
 } from './lib/supabase';
+import { compressImageFile } from './lib/imageUtils';
 import SettingsPanel from './components/SettingsPanel';
 import SupabaseGuide from './components/SupabaseGuide';
 import DynamicIcon from './components/DynamicIcon';
@@ -293,6 +294,10 @@ export default function App() {
 
   const handleCardDragLeave = (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    // Prevent false leaves when hovering over child elements
+    if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
+      return;
+    }
     if (draggedAppId) {
       if (dragOverAppId === id) {
         setDragOverAppId(null);
@@ -337,55 +342,57 @@ export default function App() {
   const handleCardDrop = async (e: React.DragEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
+    setDragOverImageAppId(null);
+
     if (draggedAppId) {
       await handleDrop(e, id);
-    } else {
-      setDragOverImageAppId(null);
-      
-      let imageUrl = '';
+      return;
+    }
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        if (file.type.startsWith('image/')) {
-          if (file.size > 2 * 1024 * 1024) {
-            alert('이미지 파일 크기는 2MB 이하여야 합니다.');
-            return;
-          }
+    let imageUrl = '';
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        try {
+          // Fast client-side compression to lightweight WebP/JPEG
+          const compressed = await compressImageFile(file, 600, 600, 0.85);
+          await updateAppThumbnail(id, compressed);
+        } catch {
           const reader = new FileReader();
           reader.onload = async () => {
-            const base64Url = reader.result as string;
-            await updateAppThumbnail(id, base64Url);
+            await updateAppThumbnail(id, reader.result as string);
           };
           reader.readAsDataURL(file);
-          return;
+        }
+        return;
+      }
+    }
+
+    const uriList = e.dataTransfer.getData('text/uri-list');
+    if (uriList) {
+      imageUrl = uriList.split('\n')[0].trim();
+    }
+
+    if (!imageUrl) {
+      const html = e.dataTransfer.getData('text/html');
+      if (html) {
+        const match = html.match(/<img[^>]+src="([^">]+)"/i);
+        if (match && match[1]) {
+          imageUrl = match[1];
         }
       }
+    }
 
-      const uriList = e.dataTransfer.getData('text/uri-list');
-      if (uriList) {
-        imageUrl = uriList.split('\n')[0].trim();
+    if (!imageUrl) {
+      const plainText = e.dataTransfer.getData('text');
+      if (plainText && (plainText.startsWith('http://') || plainText.startsWith('https://') || plainText.startsWith('data:image/'))) {
+        imageUrl = plainText.trim();
       }
+    }
 
-      if (!imageUrl) {
-        const html = e.dataTransfer.getData('text/html');
-        if (html) {
-          const match = html.match(/<img[^>]+src="([^">]+)"/i);
-          if (match && match[1]) {
-            imageUrl = match[1];
-          }
-        }
-      }
-
-      if (!imageUrl) {
-        const plainText = e.dataTransfer.getData('text');
-        if (plainText && (plainText.startsWith('http://') || plainText.startsWith('https://') || plainText.startsWith('data:image/'))) {
-          imageUrl = plainText.trim();
-        }
-      }
-
-      if (imageUrl) {
-        await updateAppThumbnail(id, imageUrl);
-      }
+    if (imageUrl) {
+      await updateAppThumbnail(id, imageUrl);
     }
   };
 
@@ -436,76 +443,100 @@ export default function App() {
       return;
     }
 
-    // Deep copy apps to prevent state mutations
-    const updatedApps = data.apps.map(app => ({ ...app }));
-    const draggedIndex = updatedApps.findIndex(a => a.id === draggedAppId);
-
-    if (draggedIndex !== -1) {
-      const draggedApp = updatedApps[draggedIndex];
-
-      // Remove from original position
-      updatedApps.splice(draggedIndex, 1);
-
-      // Find target's index in the modified list
-      const targetIndex = updatedApps.findIndex(a => a.id === targetId);
-      
-      if (targetIndex !== -1) {
-        const targetApp = updatedApps[targetIndex];
-
-        // Match target category
-        if (draggedApp.category !== targetApp.category) {
-          draggedApp.category = targetApp.category;
-        }
-
-        // Insert based on relative cursor position (before or after)
-        const insertIndex = dragOverPosition === 'after' ? targetIndex + 1 : targetIndex;
-        updatedApps.splice(insertIndex, 0, draggedApp);
-      } else {
-        // Fallback
-        updatedApps.push(draggedApp);
+    // Determine target drop position synchronously from mouse coordinates
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isHorizontal = config.layoutId === 'grid' || config.layoutId === 'split';
+    let dropPosition: 'before' | 'after' = 'before';
+    if (isHorizontal) {
+      const mouseX = e.clientX - rect.left;
+      if (mouseX > rect.width / 2) {
+        dropPosition = 'after';
       }
-
-      // Re-index all categories
-      const defaultCategories: CategoryTab[] = [
-        { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
-        { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
-      ];
-      const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
-
-      const finalApps: VibeApp[] = [];
-      categories.forEach((cat) => {
-        const catApps = updatedApps.filter(a => a.category === cat.id);
-        catApps.forEach((app, i) => { app.order = i + 1; });
-        finalApps.push(...catApps);
-      });
-      const knownCategoryIds = categories.map(c => c.id);
-      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
-      finalApps.push(...otherApps);
-
-      const newData = {
-        ...data,
-        apps: finalApps
-      };
-
-      setData(newData);
-      setSyncStatus('syncing');
-      try {
-        const result = await savePortalData(newData);
-        if (result.success) {
-          setSyncStatus('synced');
-        } else {
-          setSyncStatus('error');
-          setSyncError(result.error);
-        }
-      } catch (err: any) {
-        setSyncStatus('error');
-        setSyncError(err.message || '저장 오류');
+    } else {
+      const mouseY = e.clientY - rect.top;
+      if (mouseY > rect.height / 2) {
+        dropPosition = 'after';
       }
     }
 
+    // Clone all apps
+    const allApps = data.apps.map(app => ({ ...app }));
+    const draggedApp = allApps.find(a => a.id === draggedAppId);
+    const targetApp = allApps.find(a => a.id === targetId);
+
+    if (!draggedApp || !targetApp) {
+      setDraggedAppId(null);
+      setDragOverAppId(null);
+      setDragOverPosition(null);
+      return;
+    }
+
+    const targetCategory = targetApp.category;
+    draggedApp.category = targetCategory;
+
+    // Filter out dragged app from target category's list
+    const targetCategoryApps = allApps
+      .filter(a => a.category === targetCategory && a.id !== draggedApp.id)
+      .sort((a, b) => a.order - b.order);
+
+    const targetIdx = targetCategoryApps.findIndex(a => a.id === targetId);
+    const insertIdx = (dropPosition === 'after' && targetIdx !== -1) ? targetIdx + 1 : (targetIdx === -1 ? targetCategoryApps.length : targetIdx);
+
+    targetCategoryApps.splice(insertIdx, 0, draggedApp);
+
+    // Reassign order strictly 1, 2, 3...
+    targetCategoryApps.forEach((app, i) => {
+      app.order = i + 1;
+    });
+
+    // Reconstruct full list preserving other categories
+    const otherApps = allApps.filter(a => a.category !== targetCategory && a.id !== draggedApp.id);
+    const defaultCategories: CategoryTab[] = [
+      { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+      { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+    ];
+    const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
+
+    const finalApps: VibeApp[] = [];
+    categories.forEach((cat) => {
+      if (cat.id === targetCategory) {
+        finalApps.push(...targetCategoryApps);
+      } else {
+        const catApps = otherApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+        catApps.forEach((app, i) => { app.order = i + 1; });
+        finalApps.push(...catApps);
+      }
+    });
+
+    const knownIds = categories.map(c => c.id);
+    const restApps = otherApps.filter(a => !knownIds.includes(a.category));
+    finalApps.push(...restApps);
+
+    const newData: PortalData = {
+      ...data,
+      apps: finalApps
+    };
+
+    // Update state immediately so UI responds on first drop
+    setData(newData);
     setDraggedAppId(null);
     setDragOverAppId(null);
     setDragOverPosition(null);
+    setSyncStatus('syncing');
+
+    // Save to persistence
+    try {
+      const result = await savePortalData(newData);
+      if (result.success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+        setSyncError(result.error);
+      }
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncError(err.message || '저장 오류');
+    }
   };
 
   const handleColumnDrop = async (e: React.DragEvent, category: string) => {
@@ -513,61 +544,55 @@ export default function App() {
     e.stopPropagation();
     if (!draggedAppId) return;
 
-    // Deep copy apps
-    const updatedApps = data.apps.map(app => ({ ...app }));
-    const draggedIndex = updatedApps.findIndex(a => a.id === draggedAppId);
-    if (draggedIndex !== -1) {
-      const draggedApp = updatedApps[draggedIndex];
-      
-      if (draggedApp.category !== category) {
-        draggedApp.category = category;
-        
-        // Remove and append to end
-        updatedApps.splice(draggedIndex, 1);
-        updatedApps.push(draggedApp);
+    const allApps = data.apps.map(app => ({ ...app }));
+    const draggedApp = allApps.find(a => a.id === draggedAppId);
+    if (!draggedApp) return;
 
-        // Re-index all categories
-        const defaultCategories: CategoryTab[] = [
-          { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
-          { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
-        ];
-        const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
+    draggedApp.category = category;
 
-        const finalApps: VibeApp[] = [];
-        categories.forEach((cat) => {
-          const catApps = updatedApps.filter(a => a.category === cat.id);
-          catApps.forEach((app, i) => { app.order = i + 1; });
-          finalApps.push(...catApps);
-        });
-        const knownCategoryIds = categories.map(c => c.id);
-        const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
-        finalApps.push(...otherApps);
+    const defaultCategories: CategoryTab[] = [
+      { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+      { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+    ];
+    const categories = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
 
-        const newData = {
-          ...data,
-          apps: finalApps
-        };
-
-        setData(newData);
-        setSyncStatus('syncing');
-        try {
-          const result = await savePortalData(newData);
-          if (result.success) {
-            setSyncStatus('synced');
-          } else {
-            setSyncStatus('error');
-            setSyncError(result.error);
-          }
-        } catch (err: any) {
-          setSyncStatus('error');
-          setSyncError(err.message || '저장 오류');
-        }
+    const finalApps: VibeApp[] = [];
+    categories.forEach((cat) => {
+      const catApps = allApps.filter(a => a.category === cat.id && a.id !== draggedApp.id).sort((a, b) => a.order - b.order);
+      if (cat.id === category) {
+        catApps.push(draggedApp);
       }
-    }
+      catApps.forEach((app, i) => { app.order = i + 1; });
+      finalApps.push(...catApps);
+    });
 
+    const knownIds = categories.map(c => c.id);
+    const restApps = allApps.filter(a => !knownIds.includes(a.category) && a.id !== draggedApp.id);
+    finalApps.push(...restApps);
+
+    const newData: PortalData = {
+      ...data,
+      apps: finalApps
+    };
+
+    setData(newData);
     setDraggedAppId(null);
     setDragOverAppId(null);
     setDragOverPosition(null);
+    setSyncStatus('syncing');
+
+    try {
+      const result = await savePortalData(newData);
+      if (result.success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+        setSyncError(result.error);
+      }
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncError(err.message || '저장 오류');
+    }
   };
 
   const toggleThemeMode = async () => {

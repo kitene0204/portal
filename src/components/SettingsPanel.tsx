@@ -6,6 +6,7 @@ import {
   DEFAULT_THEMES, 
   DEFAULT_LAYOUTS 
 } from '../types';
+import { compressImageFile } from '../lib/imageUtils';
 import { 
   X, 
   Plus, 
@@ -39,7 +40,8 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  LogOut
+  LogOut,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -209,16 +211,48 @@ export default function SettingsPanel({
     setDraggableIndex(null);
   };
 
-  const handleFileProcess = (file: File) => {
-    if (file.size > 2 * 1024 * 1024) {
-      alert('이미지 파일 크기는 2MB 이하여야 합니다.');
+  const [isCompressingThumbnail, setIsCompressingThumbnail] = useState(false);
+  const [showThumbnailUrlInput, setShowThumbnailUrlInput] = useState(false);
+  const [thumbnailUrlInput, setThumbnailUrlInput] = useState('');
+  const [thumbnailSavedFeedback, setThumbnailSavedFeedback] = useState(false);
+
+  const handleFileProcess = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일(PNG, JPG, WebP, GIF 등)만 업로드할 수 있습니다.');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAppThumbnail(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) {
+      alert('이미지 파일 크기는 10MB 이하여야 합니다.');
+      return;
+    }
+    setIsCompressingThumbnail(true);
+    try {
+      // Compress and optimize thumbnail to max 600x600, ~40-80KB WebP/JPEG
+      const optimizedDataUrl = await compressImageFile(file, 600, 600, 0.85);
+      setAppThumbnail(optimizedDataUrl);
+      setThumbnailSavedFeedback(true);
+      setTimeout(() => setThumbnailSavedFeedback(false), 3000);
+    } catch (err) {
+      console.error('Thumbnail compression error:', err);
+      // Fallback
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAppThumbnail(reader.result as string);
+        setThumbnailSavedFeedback(true);
+        setTimeout(() => setThumbnailSavedFeedback(false), 3000);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingThumbnail(false);
+    }
+  };
+
+  const handleApplyThumbnailUrl = () => {
+    if (!thumbnailUrlInput.trim()) return;
+    setAppThumbnail(thumbnailUrlInput.trim());
+    setShowThumbnailUrlInput(false);
+    setThumbnailSavedFeedback(true);
+    setTimeout(() => setThumbnailSavedFeedback(false), 3000);
   };
 
   // Save General settings
@@ -977,18 +1011,67 @@ export default function SettingsPanel({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-neutral-400 mb-1 font-medium">썸네일 이미지 업로드 (선택)</label>
-                  {appThumbnail ? (
-                    <div className="relative rounded-lg overflow-hidden border border-neutral-800 w-28 h-28 mx-auto bg-neutral-900">
-                      <img src={appThumbnail} alt="썸네일 프리뷰" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setAppThumbnail('')}
-                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-neutral-300 hover:text-white transition-colors cursor-pointer"
-                        title="썸네일 삭제"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] text-neutral-400 font-medium">썸네일 이미지 (선택)</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowThumbnailUrlInput(!showThumbnailUrlInput)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <LinkIcon className="w-3 h-3" />
+                      <span>{showThumbnailUrlInput ? '파일 업로드로 변경' : 'URL 직접 입력'}</span>
+                    </button>
+                  </div>
+
+                  {showThumbnailUrlInput ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          value={thumbnailUrlInput}
+                          onChange={(e) => setThumbnailUrlInput(e.target.value)}
+                          placeholder="https://example.com/image.png"
+                          className="flex-1 min-w-0 px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyThumbnailUrl}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs font-semibold cursor-pointer transition-colors"
+                        >
+                          적용
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-neutral-500">웹상에 있는 이미지 링크를 붙여넣어 썸네일로 사용할 수 있습니다.</p>
+                    </div>
+                  ) : appThumbnail ? (
+                    <div className="p-3 bg-neutral-900/80 rounded-xl border border-neutral-800 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative rounded-lg overflow-hidden border border-neutral-700 w-16 h-16 bg-black/40 flex-shrink-0">
+                          <img src={appThumbnail} alt="썸네일 프리뷰" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>썸네일 이미지 준비 완료</span>
+                          </div>
+                          <p className="text-[10px] text-neutral-400">아래 [수정 완료 및 저장하기] 버튼을 누르면 즉시 반영됩니다.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppThumbnail('');
+                            setThumbnailUrlInput('');
+                          }}
+                          className="px-2.5 py-1.5 bg-neutral-800 hover:bg-rose-500/20 hover:text-rose-300 text-neutral-400 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                          title="썸네일 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>삭제</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div
@@ -1006,15 +1089,30 @@ export default function SettingsPanel({
                         }
                       }}
                       onClick={() => document.getElementById('thumbnail-file-input')?.click()}
-                      className={`border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
                         isDraggingThumbnail
-                          ? 'border-indigo-500 bg-indigo-950/20 text-indigo-400'
-                          : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700 hover:bg-neutral-800/40 text-neutral-400 hover:text-neutral-300'
+                          ? 'border-indigo-500 bg-indigo-950/30 text-indigo-300 scale-[1.01]'
+                          : 'border-neutral-800 bg-neutral-900/60 hover:border-indigo-500/50 hover:bg-neutral-800/40 text-neutral-400 hover:text-neutral-200'
                       }`}
                     >
-                      <Upload className="w-5 h-5 opacity-70" />
-                      <div className="text-[10px] font-semibold text-center">드래그하거나 클릭하여 썸네일 업로드</div>
-                      <div className="text-[9px] text-neutral-500">PNG, JPG (최대 2MB)</div>
+                      {isCompressingThumbnail ? (
+                        <>
+                          <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                          <span className="text-xs font-semibold text-indigo-400">이미지 자동 최적화 중...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div className="text-xs font-bold text-center text-neutral-200">
+                            이미지를 드래그하거나 클릭하여 업로드
+                          </div>
+                          <div className="text-[10px] text-neutral-500 text-center">
+                            PNG, JPG, WebP (자동 최적화 및 압축 저장)
+                          </div>
+                        </>
+                      )}
                       <input
                         id="thumbnail-file-input"
                         type="file"
@@ -1038,7 +1136,7 @@ export default function SettingsPanel({
                     onChange={(e) => setAppDescription(e.target.value)}
                     rows={2}
                     placeholder="이 앱의 기능과 사용법을 간단히 소개해주세요."
-                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 resize-none"
+                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 resize-none text-xs"
                   />
                 </div>
 
@@ -1049,21 +1147,29 @@ export default function SettingsPanel({
                     value={appTagsInput}
                     onChange={(e) => setAppTagsInput(e.target.value)}
                     placeholder="React, AI, 급식, 실시간"
-                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 text-xs"
                   />
                 </div>
 
-                {editingAppId && (
-                  <div className="flex justify-end pt-1.5">
+                {/* Prominent High-Visibility Save Actions Bar */}
+                <div className="pt-3 border-t border-neutral-800/80 flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-950/30 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{editingAppId ? '웹앱 정보 수정 및 저장하기' : '새 웹앱 등록하기'}</span>
+                  </button>
+                  {editingAppId && (
                     <button
                       type="button"
                       onClick={resetAppForm}
-                      className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
+                      className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
                     >
-                      수정 취소 (입력 초기화)
+                      수정 취소
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </form>
             </div>
 
