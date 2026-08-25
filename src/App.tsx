@@ -1104,19 +1104,33 @@ export default function App() {
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 self-stretch sm:self-start lg:self-center">
               {categories.map((cat) => {
                 const count = apps.filter(app => app.category === cat.id).length;
+                const isSelected = activeTab === cat.id;
                 
                 return (
-                  <div 
+                  <button 
                     key={cat.id} 
-                    className="p-4 sm:p-5 px-5 sm:px-7 rounded-2xl border border-white/30 bg-black/15 hover:bg-black/25 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[110px] sm:min-w-[125px] shadow-sm hover:border-white/60 hover:scale-105"
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(cat.id);
+                      const targetElem = document.getElementById('category-tabs-section');
+                      if (targetElem) {
+                        targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className={`p-4 sm:p-5 px-5 sm:px-7 rounded-2xl border backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[110px] sm:min-w-[125px] cursor-pointer text-left select-none ${
+                      isSelected 
+                        ? 'border-white bg-black/35 shadow-lg scale-105 ring-2 ring-white/50' 
+                        : 'border-white/30 bg-black/15 hover:bg-black/25 hover:border-white/60 hover:scale-105 shadow-sm'
+                    }`}
+                    title={`${cat.name} 카테고리 보기 (${count}개)`}
                   >
-                    <span className="text-xs sm:text-sm text-white font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
+                    <span className="text-xs sm:text-sm text-white font-bold uppercase tracking-wider font-mono flex items-center gap-1.5 pointer-events-none">
                       <DynamicIcon name={cat.icon || 'Folder'} className="w-4 h-4 text-white" />
                       {cat.name}
                     </span>
-                    <span className="text-3xl sm:text-4xl lg:text-5xl font-black font-display my-1 text-white">{count}</span>
-                    <span className="text-[10px] sm:text-xs font-mono font-semibold text-white/80">Projects</span>
-                  </div>
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-black font-display my-1 text-white pointer-events-none">{count}</span>
+                    <span className="text-[10px] sm:text-xs font-mono font-semibold text-white/80 pointer-events-none">Projects</span>
+                  </button>
                 );
               })}
             </div>
@@ -1124,7 +1138,7 @@ export default function App() {
         </motion.div>
 
         {/* Categories Tab Selector */}
-        <div className={`flex justify-between items-center mb-8 border-b pb-4 ${isDark ? 'border-neutral-200/10' : 'border-slate-200'}`}>
+        <div id="category-tabs-section" className={`flex justify-between items-center mb-8 border-b pb-4 ${isDark ? 'border-neutral-200/10' : 'border-slate-200'}`}>
           <div className={`flex gap-2 p-1.5 border backdrop-blur-md rounded-2xl flex-wrap relative ${
             isDark ? 'bg-neutral-950/40 border-neutral-800/40' : 'bg-slate-100 border-slate-200 shadow-inner'
           }`}>
