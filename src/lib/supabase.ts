@@ -39,6 +39,33 @@ export const getSupabase = () => {
 
 const STORAGE_KEY = 'vibe_portal_local_data';
 
+/**
+ * Safely saves data to localStorage, stripping large base64 thumbnails if quota is exceeded
+ */
+export const safeSaveToLocalStorage = (data: PortalData): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e: any) {
+    console.warn('LocalStorage save failed, trying fallback without heavy thumbnails:', e);
+    try {
+      // Create a lightweight version stripping data:image base64 strings if storage quota is full
+      const lightData: PortalData = {
+        config: data.config,
+        apps: data.apps.map(app => {
+          if (app.thumbnail && app.thumbnail.startsWith('data:')) {
+            // Keep URL thumbnails, strip heavy base64 for local storage safety
+            return { ...app, thumbnail: '' };
+          }
+          return app;
+        })
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightData));
+    } catch (innerErr) {
+      console.error('Critical localStorage quota exceeded:', innerErr);
+    }
+  }
+};
+
 // Fetch helper
 export const fetchPortalData = async (): Promise<{ data: PortalData; source: 'supabase' | 'local'; error?: string }> => {
   // First, load from localStorage as fallback
@@ -99,8 +126,8 @@ export const fetchPortalData = async (): Promise<{ data: PortalData; source: 'su
         apps: Array.isArray(data.apps) ? data.apps : []
       };
       
-      // Keep localStorage in sync
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      // Keep localStorage in sync safely
+      safeSaveToLocalStorage(merged);
       return { data: merged, source: 'supabase' };
     }
 
@@ -119,12 +146,8 @@ export const fetchPortalData = async (): Promise<{ data: PortalData; source: 'su
 
 // Save helper
 export const savePortalData = async (data: PortalData): Promise<{ success: boolean; source: 'supabase' | 'local'; error?: string }> => {
-  // Always save to localStorage first
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error('Failed to save to localStorage:', e);
-  }
+  // Always save to localStorage safely
+  safeSaveToLocalStorage(data);
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -192,7 +215,7 @@ export const subscribeToPortalData = (onUpdate: (data: PortalData) => void) => {
               config: payload.new.config,
               apps: Array.isArray(payload.new.apps) ? payload.new.apps : []
             };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            safeSaveToLocalStorage(updated);
             onUpdate(updated);
           }
         }
