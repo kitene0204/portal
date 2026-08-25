@@ -44,7 +44,7 @@ import {
   isSupabaseConfigured,
   SQL_CREATION_SCRIPT 
 } from './lib/supabase';
-import { compressImageFile } from './lib/imageUtils';
+import { compressImageFile, purgeLargeThumbnails } from './lib/imageUtils';
 import SettingsPanel from './components/SettingsPanel';
 import SupabaseGuide from './components/SupabaseGuide';
 import DynamicIcon from './components/DynamicIcon';
@@ -626,6 +626,16 @@ export default function App() {
     async function loadData() {
       setSyncStatus('syncing');
       const result = await fetchPortalData();
+      
+      // Auto-optimize any heavy thumbnails in loaded data
+      if (result.data && Array.isArray(result.data.apps)) {
+        const { apps: optimizedApps, purgedCount } = await purgeLargeThumbnails(result.data.apps);
+        if (purgedCount > 0) {
+          result.data.apps = optimizedApps;
+          savePortalData(result.data); // save lightweight back
+        }
+      }
+
       setData(result.data);
       setDataSource(result.source);
       if (result.error) {
