@@ -24,6 +24,8 @@ export interface PortalConfig {
   schoolCategoryName?: string;
   personalCategoryName?: string;
   categories?: CategoryTab[];
+  adminPassword?: string;
+  lockAdmin?: boolean;
 }
 
 export interface PortalData {
@@ -127,7 +129,9 @@ export const INITIAL_DATA: PortalData = {
     portalTitle: 'My Vibe App Coding Portal',
     layoutId: 'grid',
     themeId: 'emerald',
-    mode: 'dark'
+    mode: 'dark',
+    adminPassword: '1234',
+    lockAdmin: true
   },
   apps: [
     {

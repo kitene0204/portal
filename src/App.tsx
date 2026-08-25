@@ -20,33 +20,95 @@ import {
   Sun,
   Moon,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Lock,
+  Unlock,
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 
 import { 
   VibeApp, 
   PortalConfig, 
   PortalData, 
-  CategoryTab,
-  GET_THEME_CLASSES,
+  CategoryTab, 
+  GET_THEME_CLASSES, 
   DEFAULT_THEMES, 
   INITIAL_DATA 
 } from './types';
 import { 
   fetchPortalData, 
   savePortalData, 
+  subscribeToPortalData,
   isSupabaseConfigured 
 } from './lib/supabase';
 import SettingsPanel from './components/SettingsPanel';
 import SupabaseGuide from './components/SupabaseGuide';
 import DynamicIcon from './components/DynamicIcon';
+import AdminPasswordModal from './components/AdminPasswordModal';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<PortalData>(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Manual & Real-time Sync UI States
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [syncCompletedRecently, setSyncCompletedRecently] = useState(false);
+  const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
   
+  // Admin Authentication State
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vibe_portal_admin_auth') === 'true' || 
+             sessionStorage.getItem('vibe_portal_admin_auth') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalTitle, setPasswordModalTitle] = useState<string>('관리자 인증이 필요합니다');
+  const [passwordModalDesc, setPasswordModalDesc] = useState<string>('포털 설정 및 웹앱 관리를 위해 관리자 비밀번호를 입력해 주세요.');
+  const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
+
+  // Helper to guard admin actions
+  const requireAdmin = (action: () => void, title?: string, desc?: string) => {
+    // If lockAdmin is explicitly disabled or password is empty, permit immediately
+    if (data.config.lockAdmin === false || !data.config.adminPassword) {
+      action();
+      return;
+    }
+
+    if (isAdminAuthenticated) {
+      action();
+    } else {
+      if (title) setPasswordModalTitle(title);
+      if (desc) setPasswordModalDesc(desc);
+      setPendingAdminAction(() => action);
+      setShowPasswordModal(true);
+    }
+  };
+
+  const handleAdminAuthSuccess = () => {
+    setIsAdminAuthenticated(true);
+    setShowPasswordModal(false);
+    if (pendingAdminAction) {
+      pendingAdminAction();
+      setPendingAdminAction(null);
+    }
+  };
+
+  const handleAdminLock = () => {
+    setIsAdminAuthenticated(false);
+    try {
+      localStorage.removeItem('vibe_portal_admin_auth');
+      sessionStorage.removeItem('vibe_portal_admin_auth');
+    } catch {}
+    setShowSettings(false);
+  };
+
   // Modals & Panels
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -54,9 +116,11 @@ export default function App() {
   const [settingsEditingAppId, setSettingsEditingAppId] = useState<string | null>(null);
 
   const handleOpenAppEdit = (appId: string) => {
-    setSettingsInitialTab('apps');
-    setSettingsEditingAppId(appId);
-    setShowSettings(true);
+    requireAdmin(() => {
+      setSettingsInitialTab('apps');
+      setSettingsEditingAppId(appId);
+      setShowSettings(true);
+    }, '웹앱 세부사항 수정', '이 웹앱의 정보 및 링크를 수정하려면 관리자 비밀번호를 입력해 주세요.');
   };
   
   // Sync Statuses
@@ -94,6 +158,11 @@ export default function App() {
   }, []);
 
   const handleCatDragStart = (e: React.DragEvent, id: string) => {
+    if (data.config.lockAdmin !== false && !isAdminAuthenticated) {
+      e.preventDefault();
+      requireAdmin(() => {}, '카테고리 순서 변경', '카테고리 순서를 변경하려면 관리자 비밀번호를 입력해 주세요.');
+      return;
+    }
     setDraggedCatId(id);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -307,6 +376,11 @@ export default function App() {
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (data.config.lockAdmin !== false && !isAdminAuthenticated) {
+      e.preventDefault();
+      requireAdmin(() => {}, '웹앱 순서 변경', '웹앱 카드의 우선순위를 변경하려면 관리자 비밀번호를 입력해 주세요.');
+      return;
+    }
     setDraggedAppId(id);
     setIsDraggingState(true);
     e.dataTransfer.effectAllowed = 'move';
@@ -508,7 +582,7 @@ export default function App() {
     }
   };
 
-  // Load Initial Data
+  // Load Initial Data & Real-time Auto Sync across devices
   useEffect(() => {
     async function loadData() {
       setSyncStatus('syncing');
@@ -524,21 +598,89 @@ export default function App() {
       setLoading(false);
     }
     loadData();
+
+    // Subscribe to live Postgres changes for real-time multi-device sync
+    const unsubscribe = subscribeToPortalData((freshData) => {
+      setData(freshData);
+      setDataSource('supabase');
+      setSyncStatus('synced');
+      setSyncCompletedRecently(true);
+      setTimeout(() => setSyncCompletedRecently(false), 3000);
+    });
+
+    // Auto-refresh when tab/window becomes active (e.g. switching between phone/PC/laptop)
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPortalData().then(res => {
+          if (res.data) {
+            setData(res.data);
+            setDataSource(res.source);
+            if (!res.error) {
+              setSyncStatus('synced');
+            }
+          }
+        });
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
   }, []);
 
-  // Force sync / reload data
-  const handleRefreshSync = async () => {
+  // Manual Force sync handler with distinct visual feedback
+  const handleManualSync = async () => {
+    if (isManualSyncing) return;
+    setIsManualSyncing(true);
     setSyncStatus('syncing');
     setSyncError(null);
-    const result = await fetchPortalData();
-    setData(result.data);
-    setDataSource(result.source);
-    if (result.error) {
+    setSyncCompletedRecently(false);
+
+    const startTime = Date.now();
+    try {
+      const result = await fetchPortalData();
+      
+      // Ensure minimum 600ms so user can comfortably see the rotation animation
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 600) {
+        await new Promise(resolve => setTimeout(resolve, 600 - elapsed));
+      }
+
+      setData(result.data);
+      setDataSource(result.source);
+      
+      if (result.error) {
+        setSyncStatus('error');
+        setSyncError(result.error);
+        setSyncToastMessage('⚠️ 동기화 실패: ' + result.error);
+      } else {
+        setSyncStatus('synced');
+        setSyncCompletedRecently(true);
+        setSyncToastMessage(`☁️ 최신 데이터(${result.data.apps.length}개 웹앱) 동기화 완료!`);
+      }
+    } catch (err: any) {
       setSyncStatus('error');
-      setSyncError(result.error);
-    } else {
-      setSyncStatus('synced');
+      setSyncError(err.message || '동기화 중 오류가 발생했습니다.');
+      setSyncToastMessage('⚠️ 동기화 중 오류가 발생했습니다.');
+    } finally {
+      setIsManualSyncing(false);
+      setTimeout(() => {
+        setSyncCompletedRecently(false);
+      }, 3500);
+      setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 3500);
     }
+  };
+
+  // Force sync / reload data
+  const handleRefreshSync = () => {
+    handleManualSync();
   };
 
   // Save configurations helper
@@ -729,26 +871,27 @@ export default function App() {
               {/* Sync Badge */}
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                  dataSource === 'supabase' && syncStatus === 'synced' ? 'bg-emerald-500' :
+                  dataSource === 'supabase' && syncStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' :
                   dataSource === 'supabase' && syncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' :
+                  syncStatus === 'error' ? 'bg-rose-500' :
                   'bg-indigo-400'
                 }`}></span>
                 <span className="text-[10px] text-neutral-400 font-mono tracking-wider">
-                  {dataSource === 'supabase' ? 'Supabase Synchronized' : 'Local Backup Active'}
+                  {dataSource === 'supabase' ? (isManualSyncing ? '동기화 진행 중...' : 'Supabase 실시간 연동') : '로컬 백업 모드'}
                 </span>
                 <button 
-                  onClick={handleRefreshSync}
-                  title="서버와 동기화 새로고침"
-                  className="p-0.5 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer ml-1"
+                  onClick={handleManualSync}
+                  title="실시간 연동 데이터 새로고침"
+                  className="p-0.5 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer ml-0.5"
                 >
-                  <RefreshCw className={`w-2.5 h-2.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-2.5 h-2.5 ${isManualSyncing || syncStatus === 'syncing' ? 'animate-spin text-sky-400' : ''}`} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Search bar & Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Search Input */}
             <div className="relative hidden md:block">
@@ -758,9 +901,44 @@ export default function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="웹앱 이름 또는 태그 검색..."
-                className={`pl-9 pr-4 py-1.5 rounded-full text-xs transition-all w-60 focus:w-72 outline-none border ${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500`}
+                className={`pl-9 pr-4 py-1.5 rounded-full text-xs transition-all w-52 lg:w-64 focus:w-72 outline-none border ${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500`}
               />
             </div>
+
+            {/* Dedicated Real-time Manual Sync Button */}
+            <button
+              onClick={handleManualSync}
+              disabled={isManualSyncing}
+              title="클릭 시 모든 기기(집, 학교, 노트북, 스마트폰)의 최신 데이터 실시간 연동 및 동기화"
+              className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all duration-300 cursor-pointer shadow-sm ${
+                isManualSyncing
+                  ? 'bg-sky-500/20 border-sky-500/60 text-sky-300 ring-2 ring-sky-500/30'
+                  : syncCompletedRecently
+                  ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 ring-2 ring-emerald-500/30'
+                  : syncStatus === 'error'
+                  ? 'bg-rose-500/20 border-rose-500/60 text-rose-300'
+                  : `${activeTheme.cardBg} ${activeTheme.border} text-slate-200 hover:bg-neutral-800/80 hover:border-sky-500/40 hover:text-white`
+              }`}
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 flex-shrink-0 ${
+                  isManualSyncing
+                    ? 'animate-spin text-sky-400'
+                    : syncCompletedRecently
+                    ? 'text-emerald-400'
+                    : 'text-slate-300'
+                }`}
+              />
+              <span className="whitespace-nowrap">
+                {isManualSyncing
+                  ? '동기화 중...'
+                  : syncCompletedRecently
+                  ? '동기화 완료'
+                  : syncStatus === 'error'
+                  ? '동기화 재시도'
+                  : '실시간 연동'}
+              </span>
+            </button>
 
             {/* Supabase Guide button */}
             <button
@@ -769,7 +947,7 @@ export default function App() {
               className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${activeTheme.cardBg} ${activeTheme.border} text-slate-300 hover:bg-neutral-800/40`}
             >
               <Database className="w-4 h-4" />
-              <span className="hidden sm:inline">백엔드 연동</span>
+              <span className="hidden xl:inline">백엔드 연동</span>
             </button>
 
             {/* Dark/Light Mode Toggle */}
@@ -785,17 +963,35 @@ export default function App() {
               )}
             </button>
 
+            {/* Admin status toggle if authenticated */}
+            {data.config.lockAdmin !== false && isAdminAuthenticated && (
+              <button
+                onClick={handleAdminLock}
+                title="관리자 모드 잠그기 (방문자 화면 테스트)"
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeTheme.cardBg} border-amber-500/40 text-amber-400 hover:bg-amber-500/10 shadow-sm`}
+              >
+                <Unlock className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">관리자 인증됨 (잠금)</span>
+              </button>
+            )}
+
             {/* Settings button in the top right */}
             <button
               onClick={() => {
-                setSettingsInitialTab('general');
-                setSettingsEditingAppId(null);
-                setShowSettings(true);
+                requireAdmin(() => {
+                  setSettingsInitialTab('general');
+                  setSettingsEditingAppId(null);
+                  setShowSettings(true);
+                }, '포털 설정 관리자', '포털 정보 및 설정을 변경하려면 관리자 비밀번호를 입력해 주세요.');
               }}
               id="settings-trigger-btn"
               className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer transition-all duration-300 ${activeTheme.primaryBtn}`}
             >
-              <Settings className="w-4 h-4" />
+              {data.config.lockAdmin !== false && !isAdminAuthenticated ? (
+                <Lock className="w-3.5 h-3.5" />
+              ) : (
+                <Settings className="w-4 h-4" />
+              )}
               <span>포털 관리</span>
             </button>
 
@@ -1693,11 +1889,25 @@ export default function App() {
                 onClose={() => setShowSettings(false)}
                 initialTab={settingsInitialTab}
                 initialEditingAppId={settingsEditingAppId}
+                onLockAdmin={handleAdminLock}
               />
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* Admin Password Verification Modal */}
+      <AdminPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPendingAdminAction(null);
+        }}
+        onSuccess={handleAdminAuthSuccess}
+        expectedPassword={config.adminPassword || '1234'}
+        title={passwordModalTitle}
+        description={passwordModalDesc}
+      />
 
       {/* Supabase Guide Modal */}
       <AnimatePresence>
@@ -1722,6 +1932,21 @@ export default function App() {
               <SupabaseGuide onClose={() => setShowGuide(false)} />
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Real-time Sync Toast Notification */}
+      <AnimatePresence>
+        {syncToastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-neutral-900/95 border border-neutral-700/80 text-white text-xs font-semibold shadow-2xl backdrop-blur-md"
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>{syncToastMessage}</span>
+          </motion.div>
         )}
       </AnimatePresence>
 

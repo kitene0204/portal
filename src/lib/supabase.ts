@@ -139,6 +139,38 @@ export const savePortalData = async (data: PortalData): Promise<{ success: boole
   }
 };
 
+export const subscribeToPortalData = (onUpdate: (data: PortalData) => void) => {
+  const supabase = getSupabase();
+  if (!supabase) return () => {};
+
+  try {
+    const channel = supabase
+      .channel('portal_realtime_data')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vibe_portal_data', filter: 'id=eq.global' },
+        (payload: any) => {
+          if (payload?.new && payload.new.config && payload.new.apps) {
+            const updated: PortalData = {
+              config: payload.new.config,
+              apps: Array.isArray(payload.new.apps) ? payload.new.apps : []
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            onUpdate(updated);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (err) {
+    console.error('Failed to subscribe to realtime changes:', err);
+    return () => {};
+  }
+};
+
 export const SQL_CREATION_SCRIPT = `
 -- Supabase SQL Editor에 복사하여 실행해 주세요.
 -- 'vibe_portal_data' 테이블을 생성합니다.

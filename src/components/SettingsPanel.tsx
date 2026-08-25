@@ -33,7 +33,13 @@ import {
   Heart,
   Upload,
   Image as ImageIcon,
-  GripVertical
+  GripVertical,
+  Lock,
+  KeyRound,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  LogOut
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -44,6 +50,7 @@ interface SettingsPanelProps {
   onClose: () => void;
   initialTab?: 'general' | 'apps';
   initialEditingAppId?: string | null;
+  onLockAdmin?: () => void;
 }
 
 const POPULAR_ICONS = [
@@ -68,7 +75,8 @@ export default function SettingsPanel({
   onSaveApps,
   onClose,
   initialTab = 'general',
-  initialEditingAppId = null
+  initialEditingAppId = null,
+  onLockAdmin
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'apps'>(initialTab);
   const [portalTitle, setPortalTitle] = useState(config.portalTitle);
@@ -86,6 +94,12 @@ export default function SettingsPanel({
   // Dynamic Category state additions
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Folder');
+
+  // Security & Admin Password States
+  const [adminPassword, setAdminPassword] = useState(config.adminPassword || '1234');
+  const [lockAdmin, setLockAdmin] = useState(config.lockAdmin !== false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);
 
   // App Editor States
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
@@ -216,8 +230,28 @@ export default function SettingsPanel({
       themeId,
       schoolCategoryName,
       personalCategoryName,
-      categories
+      categories,
+      adminPassword,
+      lockAdmin
     });
+  };
+
+  const handleSaveSecurity = (newPassword?: string, newLock?: boolean) => {
+    const psw = newPassword !== undefined ? newPassword : adminPassword;
+    const lck = newLock !== undefined ? newLock : lockAdmin;
+    onSaveConfig({
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName,
+      categories,
+      adminPassword: psw,
+      lockAdmin: lck
+    });
+    setPasswordSaveSuccess(true);
+    setTimeout(() => setPasswordSaveSuccess(false), 2500);
   };
 
   // Trigger whenever theme or layout or title changes dynamically for real-time vibe feedback!
@@ -230,7 +264,9 @@ export default function SettingsPanel({
       themeId: id,
       schoolCategoryName,
       personalCategoryName,
-      categories
+      categories,
+      adminPassword,
+      lockAdmin
     });
   };
 
@@ -243,7 +279,9 @@ export default function SettingsPanel({
       themeId,
       schoolCategoryName,
       personalCategoryName,
-      categories
+      categories,
+      adminPassword,
+      lockAdmin
     });
   };
 
@@ -256,7 +294,9 @@ export default function SettingsPanel({
       themeId,
       schoolCategoryName,
       personalCategoryName,
-      categories
+      categories,
+      adminPassword,
+      lockAdmin
     });
   };
 
@@ -276,7 +316,9 @@ export default function SettingsPanel({
       themeId,
       schoolCategoryName,
       personalCategoryName,
-      categories: updated
+      categories: updated,
+      adminPassword,
+      lockAdmin
     });
     setNewCatName('');
   };
@@ -302,7 +344,9 @@ export default function SettingsPanel({
       themeId,
       schoolCategoryName: schoolName,
       personalCategoryName: personalName,
-      categories: updated
+      categories: updated,
+      adminPassword,
+      lockAdmin
     });
   };
 
@@ -741,9 +785,100 @@ export default function SettingsPanel({
               </div>
             </div>
 
+            {/* Admin Security & Password Lock Section */}
+            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/10 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-neutral-200">관리자 보안 및 잠금 설정</h3>
+                    <p className="text-[11px] text-neutral-400">공유 시 타인의 무단 수정을 방지합니다.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={lockAdmin}
+                    onChange={(e) => {
+                      const newLock = e.target.checked;
+                      setLockAdmin(newLock);
+                      handleSaveSecurity(adminPassword, newLock);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {lockAdmin && (
+                <div className="space-y-3 pt-2 border-t border-neutral-800/80 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-300 mb-1.5 flex items-center justify-between">
+                      <span>관리자 비밀번호 (PIN)</span>
+                      <span className="text-[10px] text-amber-400/90 font-mono">기본값: 1234</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-neutral-500">
+                          <KeyRound className="w-3.5 h-3.5" />
+                        </div>
+                        <input
+                          type={showAdminPassword ? 'text' : 'password'}
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                          placeholder="새 비밀번호 입력"
+                          className="w-full pl-8 pr-8 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-amber-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAdminPassword(!showAdminPassword)}
+                          className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-neutral-500 hover:text-neutral-300"
+                        >
+                          {showAdminPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSecurity(adminPassword, lockAdmin)}
+                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                      >
+                        {passwordSaveSuccess ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-slate-950" />
+                            <span>저장됨!</span>
+                          </>
+                        ) : (
+                          <span>변경 저장</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-neutral-400 leading-relaxed">
+                    💡 다른 사람이 이 포털 웹앱에 접속했을 때, 관리자 비밀번호를 모르면 <strong>웹앱 정보 수정/삭제/추가 및 카드 순서 드래그</strong>가 차단됩니다.
+                  </p>
+
+                  {onLockAdmin && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={onLockAdmin}
+                        className="w-full py-2 px-3 rounded-lg border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-amber-400" />
+                        <span>지금 관리자 모드 잠그기 (방문자 화면 테스트)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="pt-4 border-t border-neutral-800 text-[11px] text-neutral-500 leading-relaxed space-y-1">
-              <p>✔️ 모든 디자인 요소는 변경 시 실시간 반영됩니다.</p>
-              <p>✔️ 변경된 레이아웃 및 테마 값 역시 Supabase에 그대로 동기화됩니다.</p>
+              <p>✔️ 모든 디자인 및 보안 설정은 변경 시 실시간 반영됩니다.</p>
+              <p>✔️ 변경된 설정값은 Supabase 및 로컬 스토리지에 자동 동기화됩니다.</p>
             </div>
           </div>
         )}
