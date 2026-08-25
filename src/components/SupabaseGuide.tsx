@@ -68,42 +68,44 @@ export default function SupabaseGuide({ onClose }: SupabaseGuideProps) {
             </div>
           </div>
           <p className="text-[11px] text-neutral-400 mt-3 leading-relaxed">
-            💡 AI Studio 우측 상단 또는 설정창의 <strong>Secrets</strong> 메뉴에 위 두 변수를 등록하시면 자동으로 연결됩니다. 
-            그 후 프로젝트를 깃허브에 업로드하고 Vercel에 배포할 때 동일하게 두 환경 변수를 세팅해 주면 Vercel에서도 실시간 데이터 동기화가 지원됩니다.
+            💡 AI Studio 우측 상단 또는 Vercel 환경 변수(Environment Variables)에 위 두 변수를 등록하셨다면 1단계가 완료된 것입니다.
           </p>
         </div>
 
         {/* Step 2: SQL Script */}
-        <div className="space-y-2">
+        <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
           <h3 className="font-medium text-sm flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-sky-400" />
-            2단계: Supabase 테이블 생성하기
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            2단계: Supabase 테이블 및 권한 생성 (10초 소요)
           </h3>
-          <p className="text-xs text-neutral-400 leading-relaxed">
-            Supabase 프로젝트 대시보드의 <strong className="text-neutral-300">SQL Editor</strong>에 접속하여 새로운 쿼리를 만들고, 아래 스크립트를 복사하여 실행(Run)해 주세요:
-          </p>
+          <ol className="text-xs text-neutral-300 space-y-2 list-decimal list-inside leading-relaxed bg-neutral-950/60 p-3 rounded-lg border border-neutral-800">
+            <li><a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="text-sky-400 underline font-medium">Supabase 대시보드</a>에 로그인하여 해당 프로젝트로 이동합니다.</li>
+            <li>왼쪽 사이드바 메뉴에서 <strong className="text-white bg-neutral-800 px-1.5 py-0.5 rounded">SQL Editor</strong> 아이콘을 클릭합니다.</li>
+            <li>상단의 <strong className="text-white bg-neutral-800 px-1.5 py-0.5 rounded">+ New query</strong> 버튼을 클릭합니다.</li>
+            <li>아래의 스크립트를 복사하여 붙여넣은 뒤, 우측 하단의 초록색 <strong className="text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">Run (실행)</strong> 버튼을 누릅니다.</li>
+          </ol>
 
-          <div className="relative mt-2 rounded-xl overflow-hidden border border-neutral-800 bg-neutral-950">
-            <div className="flex justify-between items-center px-4 py-2 bg-neutral-900 border-b border-neutral-800">
-              <span className="text-[11px] font-mono text-neutral-400">schema-setup.sql</span>
+          <div className="relative mt-3 rounded-xl overflow-hidden border border-neutral-800 bg-neutral-950">
+            <div className="flex justify-between items-center px-4 py-2.5 bg-neutral-900 border-b border-neutral-800">
+              <span className="text-[11px] font-mono text-neutral-300 font-semibold">schema-setup.sql</span>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 text-[11px] text-neutral-300 hover:text-white px-2 py-1 rounded hover:bg-neutral-800 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-950 bg-sky-400 hover:bg-sky-300 px-3 py-1 rounded-lg transition-colors cursor-pointer shadow-sm"
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>복사 완료</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>SQL 복사 완료!</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>복사하기</span>
+                    <span>전체 SQL 복사하기</span>
                   </>
                 )}
               </button>
             </div>
-            <pre className="p-4 text-[11px] font-mono text-neutral-300 overflow-x-auto max-h-48 leading-relaxed">
+            <pre className="p-4 text-[11px] font-mono text-emerald-400/90 overflow-x-auto max-h-56 leading-relaxed select-all">
               {SQL_CREATION_SCRIPT.trim()}
             </pre>
           </div>

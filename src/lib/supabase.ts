@@ -62,26 +62,38 @@ export const fetchPortalData = async (): Promise<{ data: PortalData; source: 'su
       .from('vibe_portal_data')
       .select('config, apps')
       .eq('id', 'global')
-      .single();
+      .maybeSingle();
 
     if (error) {
-      // If table doesn't exist (PGRST116 or 42P01 code) or no data yet
       console.warn('Supabase fetch error or table not found, using local storage:', error);
       
-      // Let's seed initial data if it's a 116 (No row found) but table exists
-      if (error.code === 'PGRST116') {
-        await savePortalData(localData);
-        return { data: localData, source: 'supabase' };
+      const errorCode = error.code || '';
+      const errorMsg = error.message || '';
+
+      if (errorCode === '42P01' || errorMsg.includes('does not exist')) {
+        return { 
+          data: localData, 
+          source: 'local', 
+          error: "Supabase에 'vibe_portal_data' 테이블이 없습니다. Supabase SQL Editor에서 스크립트를 실행해 주세요."
+        };
+      }
+
+      if (errorCode === '42501' || errorMsg.includes('row-level security') || errorMsg.includes('permission denied')) {
+        return { 
+          data: localData, 
+          source: 'local', 
+          error: "Supabase RLS(보안 정책) 권한이 없습니다. SQL 스크립트를 실행하여 읽기/쓰기를 허용해 주세요."
+        };
       }
       
       return { 
         data: localData, 
         source: 'local', 
-        error: `Supabase 연결은 되었으나 테이블(${error.code})을 찾을 수 없거나 데이터가 없습니다. SQL 스크립트를 실행해 주세요.`
+        error: `Supabase 연동 오류 (${errorCode || 'DB 오류'}): ${errorMsg || '데이터를 불러올 수 없습니다.'}`
       };
     }
 
-    if (data) {
+    if (data && data.config) {
       const merged: PortalData = {
         config: data.config,
         apps: Array.isArray(data.apps) ? data.apps : []
@@ -92,7 +104,13 @@ export const fetchPortalData = async (): Promise<{ data: PortalData; source: 'su
       return { data: merged, source: 'supabase' };
     }
 
-    return { data: localData, source: 'local' };
+    // If data is null (table exists but is empty), seed it automatically with local/initial data!
+    const saveResult = await savePortalData(localData);
+    if (saveResult.success) {
+      return { data: localData, source: 'supabase' };
+    }
+
+    return { data: localData, source: 'supabase' };
   } catch (err: any) {
     console.error('Supabase fetch exception:', err);
     return { data: localData, source: 'local', error: err.message || 'Supabase 연결 오류' };
@@ -125,10 +143,29 @@ export const savePortalData = async (data: PortalData): Promise<{ success: boole
 
     if (error) {
       console.error('Supabase upsert error:', error);
+      const errorCode = error.code || '';
+      const errorMsg = error.message || '';
+
+      if (errorCode === '42P01' || errorMsg.includes('does not exist')) {
+        return { 
+          success: false, 
+          source: 'local', 
+          error: "Supabase에 'vibe_portal_data' 테이블이 없습니다. SQL Editor에서 스크립트를 실행해 주세요." 
+        };
+      }
+
+      if (errorCode === '42501' || errorMsg.includes('row-level security') || errorMsg.includes('permission denied')) {
+        return { 
+          success: false, 
+          source: 'local', 
+          error: "Supabase RLS(보안 정책) 권한이 없습니다. SQL 스크립트를 실행해 주세요." 
+        };
+      }
+
       return { 
         success: false, 
         source: 'local', 
-        error: `Supabase 저장 실패: ${error.message}. 테이블이 없는 경우 SQL 쿼리를 실행해 테이블을 먼저 생성해야 합니다.` 
+        error: `Supabase 저장 실패 (${errorCode}): ${errorMsg}` 
       };
     }
 
@@ -172,22 +209,40 @@ export const subscribeToPortalData = (onUpdate: (data: PortalData) => void) => {
 };
 
 export const SQL_CREATION_SCRIPT = `
--- Supabase SQL Editor에 복사하여 실행해 주세요.
--- 'vibe_portal_data' 테이블을 생성합니다.
+-- =======================================================
+-- Supabase SQL Editor에 복사하여 실행(Run)해 주세요.
+-- 포털 데이터 저장 테이블 및 권한/실시간 동기화 설정
+-- =======================================================
 
-CREATE TABLE IF NOT EXISTS vibe_portal_data (
+-- 1. 포털 데이터 저장 테이블 생성
+CREATE TABLE IF NOT EXISTS public.vibe_portal_data (
   id TEXT PRIMARY KEY,
   config JSONB NOT NULL,
   apps JSONB NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 누구나 읽고 쓸 수 있는 RLS (Row Level Security) 설정 (원하는 경우 보안 규칙 수정 가능)
-ALTER TABLE vibe_portal_data ENABLE ROW LEVEL SECURITY;
+-- 2. RLS (Row Level Security) 활성화 및 누구나 읽고 쓸 수 있는 정책 생성
+ALTER TABLE public.vibe_portal_data ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read and write" ON public.vibe_portal_data;
 
 CREATE POLICY "Allow public read and write" 
-ON vibe_portal_data 
+ON public.vibe_portal_data 
 FOR ALL 
 USING (true) 
 WITH CHECK (true);
+
+-- 3. 여러 기기(폰, 노트북, 데스크톱) 간 실시간 변경 알림(Realtime) 활성화
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND schemaname = 'public' 
+    AND tablename = 'vibe_portal_data'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.vibe_portal_data;
+  END IF;
+END $$;
 `;

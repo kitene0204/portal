@@ -24,7 +24,8 @@ import {
   Lock,
   Unlock,
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  Copy
 } from 'lucide-react';
 
 import { 
@@ -40,7 +41,8 @@ import {
   fetchPortalData, 
   savePortalData, 
   subscribeToPortalData,
-  isSupabaseConfigured 
+  isSupabaseConfigured,
+  SQL_CREATION_SCRIPT 
 } from './lib/supabase';
 import SettingsPanel from './components/SettingsPanel';
 import SupabaseGuide from './components/SupabaseGuide';
@@ -57,6 +59,18 @@ export default function App() {
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [syncCompletedRecently, setSyncCompletedRecently] = useState(false);
   const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
+  const [copiedSqlInBanner, setCopiedSqlInBanner] = useState(false);
+
+  const handleCopySqlFromBanner = async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_CREATION_SCRIPT);
+      setCopiedSqlInBanner(true);
+      setSyncToastMessage('📋 SQL 스크립트가 클립보드에 복사되었습니다! Supabase SQL Editor에 붙여넣고 Run을 눌러주세요.');
+      setTimeout(() => setCopiedSqlInBanner(false), 3000);
+    } catch {
+      setShowGuide(true);
+    }
+  };
   
   // Admin Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
@@ -734,33 +748,33 @@ export default function App() {
     
     if (isSchool) {
       return {
-        hoverBorder: 'hover:border-sky-500/40',
-        iconBg: isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-150',
+        hoverBorder: isDark ? 'hover:border-sky-500/40' : 'hover:border-sky-400 hover:shadow-sky-100',
+        iconBg: isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.15)]' : 'bg-sky-50 text-sky-700 border-sky-200 shadow-sm',
         progressBar: 'bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]',
-        tag: isDark ? 'bg-sky-500/5 text-sky-400 border border-sky-500/10' : 'bg-sky-50 text-sky-700 border border-sky-100',
+        tag: isDark ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20' : 'bg-sky-50 text-sky-800 border border-sky-200 font-semibold',
         badge: activeTheme.schoolBadge,
         activeBorder: 'border-sky-500 shadow-sky-500/20',
-        accentColor: 'text-sky-400'
+        accentColor: isDark ? 'text-sky-400' : 'text-sky-600'
       };
     } else if (isPersonal) {
       return {
-        hoverBorder: 'hover:border-purple-500/40',
-        iconBg: isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-150',
+        hoverBorder: isDark ? 'hover:border-purple-500/40' : 'hover:border-purple-400 hover:shadow-purple-100',
+        iconBg: isDark ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.15)]' : 'bg-violet-50 text-violet-700 border-violet-200 shadow-sm',
         progressBar: 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]',
-        tag: isDark ? 'bg-violet-500/5 text-violet-400 border border-violet-500/10' : 'bg-violet-50 text-violet-700 border border-violet-100',
+        tag: isDark ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20' : 'bg-violet-50 text-violet-800 border border-violet-200 font-semibold',
         badge: activeTheme.personalBadge,
         activeBorder: 'border-violet-500 shadow-violet-500/20',
-        accentColor: 'text-violet-400'
+        accentColor: isDark ? 'text-violet-400' : 'text-violet-600'
       };
     } else {
       return {
-        hoverBorder: 'hover:border-emerald-500/40',
-        iconBg: isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-emerald-50 text-emerald-700 border-emerald-150',
+        hoverBorder: isDark ? 'hover:border-emerald-500/40' : 'hover:border-emerald-400 hover:shadow-emerald-100',
+        iconBg: isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm',
         progressBar: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
-        tag: isDark ? 'bg-emerald-500/5 text-emerald-400 border border-emerald-500/10' : 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-        badge: 'bg-emerald-950 text-emerald-400 border border-emerald-900/50',
+        tag: isDark ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold',
+        badge: isDark ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold',
         activeBorder: 'border-emerald-500 shadow-emerald-500/20',
-        accentColor: 'text-emerald-400'
+        accentColor: isDark ? 'text-emerald-400' : 'text-emerald-600'
       };
     }
   };
@@ -824,37 +838,65 @@ export default function App() {
       
       {/* Dynamic Floating Subheader for warning if Supabase table or keys are missing */}
       {syncStatus === 'error' && syncError && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-xs px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 animate-bounce" />
-            <span className="font-medium">{syncError}</span>
+        <div className="bg-amber-500/10 border-b border-amber-500/30 text-amber-300 text-xs px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-inner">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400 animate-pulse" />
+            <span className="font-medium truncate">{syncError}</span>
           </div>
-          <button 
-            onClick={() => setShowGuide(true)}
-            className="px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 rounded text-[10px] font-semibold transition-colors cursor-pointer"
-          >
-            설정 가이드 열기
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleCopySqlFromBanner}
+              className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+            >
+              {copiedSqlInBanner ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-300">SQL 복사 완료!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>1초 만에 SQL 복사</span>
+                </>
+              )}
+            </button>
+            <button 
+              onClick={() => setShowGuide(true)}
+              className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Database className="w-3.5 h-3.5 text-sky-400" />
+              <span>연동 가이드</span>
+            </button>
+            <button 
+              onClick={handleManualSync}
+              className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing ? 'animate-spin' : ''}`} />
+              <span>동기화 다시 시도</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* Navigation Topbar */}
       <header className={`sticky top-0 z-40 border-b backdrop-blur-md transition-all duration-300 ${
-        activeTheme.id === 'indigo' ? 'bg-[#0B132B]/80 border-blue-500/10 text-slate-100' :
-        activeTheme.id === 'emerald' ? 'bg-[#051A14]/80 border-emerald-500/10 text-slate-100' :
-        activeTheme.id === 'rosewood' ? 'bg-[#1A0A10]/80 border-rose-500/10 text-slate-100' :
-        'bg-[#120F0D]/80 border-amber-500/10 text-slate-100'
+        isDark 
+          ? (activeTheme.id === 'indigo' ? 'bg-[#0B132B]/85 border-blue-500/10 text-slate-100' :
+             activeTheme.id === 'emerald' ? 'bg-[#051A14]/85 border-emerald-500/10 text-slate-100' :
+             activeTheme.id === 'rosewood' ? 'bg-[#1A0A10]/85 border-rose-500/10 text-slate-100' :
+             'bg-[#120F0D]/85 border-amber-500/10 text-slate-100')
+          : 'bg-white/90 border-slate-200 text-slate-900 shadow-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Logo & Portal Title */}
           <div className="flex items-center gap-3">
-            <div className={`p-1.5 rounded-lg transition-all duration-300 ${activeTheme.accentBg} flex items-center justify-center w-9 h-9 shadow-md shadow-indigo-500/10`}>
-              <svg className="w-6 h-6 text-indigo-200" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div className={`p-1.5 rounded-lg transition-all duration-300 ${activeTheme.accentBg} flex items-center justify-center w-9 h-9 shadow-md`}>
+              <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                   <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#818cf8" />
-                    <stop offset="100%" stopColor="#c084fc" />
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
                   </linearGradient>
                 </defs>
                 <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="6" opacity="0.3" />
@@ -864,7 +906,7 @@ export default function App() {
               </svg>
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight md:text-base">
+              <h1 className={`text-sm font-extrabold tracking-tight md:text-base ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                 {config.portalTitle || 'Vibe App Portal'}
               </h1>
               
@@ -876,15 +918,15 @@ export default function App() {
                   syncStatus === 'error' ? 'bg-rose-500' :
                   'bg-indigo-400'
                 }`}></span>
-                <span className="text-[10px] text-neutral-400 font-mono tracking-wider">
+                <span className={`text-[10px] font-mono tracking-wider font-medium ${isDark ? 'text-neutral-400' : 'text-slate-500'}`}>
                   {dataSource === 'supabase' ? (isManualSyncing ? '동기화 진행 중...' : 'Supabase 실시간 연동') : '로컬 백업 모드'}
                 </span>
                 <button 
                   onClick={handleManualSync}
                   title="실시간 연동 데이터 새로고침"
-                  className="p-0.5 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer ml-0.5"
+                  className={`p-0.5 rounded transition-colors cursor-pointer ml-0.5 ${isDark ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                 >
-                  <RefreshCw className={`w-2.5 h-2.5 ${isManualSyncing || syncStatus === 'syncing' ? 'animate-spin text-sky-400' : ''}`} />
+                  <RefreshCw className={`w-2.5 h-2.5 ${isManualSyncing || syncStatus === 'syncing' ? 'animate-spin text-sky-500' : ''}`} />
                 </button>
               </div>
             </div>
@@ -895,13 +937,17 @@ export default function App() {
             
             {/* Search Input */}
             <div className="relative hidden md:block">
-              <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-neutral-400' : 'text-slate-400'}`} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="웹앱 이름 또는 태그 검색..."
-                className={`pl-9 pr-4 py-1.5 rounded-full text-xs transition-all w-52 lg:w-64 focus:w-72 outline-none border ${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500`}
+                className={`pl-9 pr-4 py-1.5 rounded-full text-xs transition-all w-52 lg:w-64 focus:w-72 outline-none border ${
+                  isDark 
+                    ? `${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500` 
+                    : 'bg-slate-100/90 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-400 shadow-inner'
+                }`}
               />
             </div>
 
@@ -912,21 +958,23 @@ export default function App() {
               title="클릭 시 모든 기기(집, 학교, 노트북, 스마트폰)의 최신 데이터 실시간 연동 및 동기화"
               className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all duration-300 cursor-pointer shadow-sm ${
                 isManualSyncing
-                  ? 'bg-sky-500/20 border-sky-500/60 text-sky-300 ring-2 ring-sky-500/30'
+                  ? 'bg-sky-500/20 border-sky-500/60 text-sky-400 ring-2 ring-sky-500/30'
                   : syncCompletedRecently
-                  ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 ring-2 ring-emerald-500/30'
+                  ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-500 ring-2 ring-emerald-500/30'
                   : syncStatus === 'error'
-                  ? 'bg-rose-500/20 border-rose-500/60 text-rose-300'
-                  : `${activeTheme.cardBg} ${activeTheme.border} text-slate-200 hover:bg-neutral-800/80 hover:border-sky-500/40 hover:text-white`
+                  ? 'bg-rose-500/20 border-rose-500/60 text-rose-500'
+                  : isDark 
+                  ? `${activeTheme.cardBg} ${activeTheme.border} text-slate-200 hover:bg-neutral-800/80 hover:border-sky-500/40 hover:text-white`
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 flex-shrink-0 ${
                   isManualSyncing
-                    ? 'animate-spin text-sky-400'
+                    ? 'animate-spin text-sky-500'
                     : syncCompletedRecently
-                    ? 'text-emerald-400'
-                    : 'text-slate-300'
+                    ? 'text-emerald-500'
+                    : isDark ? 'text-slate-300' : 'text-slate-600'
                 }`}
               />
               <span className="whitespace-nowrap">
@@ -944,9 +992,13 @@ export default function App() {
             <button
               onClick={() => setShowGuide(true)}
               title="데이터 동기화 방법 확인"
-              className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${activeTheme.cardBg} ${activeTheme.border} text-slate-300 hover:bg-neutral-800/40`}
+              className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isDark 
+                  ? `${activeTheme.cardBg} ${activeTheme.border} text-slate-300 hover:bg-neutral-800/40`
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm'
+              }`}
             >
-              <Database className="w-4 h-4" />
+              <Database className={`w-4 h-4 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
               <span className="hidden xl:inline">백엔드 연동</span>
             </button>
 
@@ -954,7 +1006,11 @@ export default function App() {
             <button
               onClick={toggleThemeMode}
               title={isDark ? '밝은 모드로 전환' : '어두운 모드로 전환'}
-              className={`p-2 rounded-lg border text-xs font-medium flex items-center justify-center transition-all duration-300 cursor-pointer ${activeTheme.cardBg} ${activeTheme.border} text-slate-300 hover:scale-[1.03]`}
+              className={`p-2 rounded-lg border text-xs font-medium flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                isDark 
+                  ? `${activeTheme.cardBg} ${activeTheme.border} text-slate-300 hover:scale-[1.03]`
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm hover:scale-[1.03]'
+              }`}
             >
               {isDark ? (
                 <Sun className="w-4 h-4 text-amber-400" />
@@ -968,7 +1024,11 @@ export default function App() {
               <button
                 onClick={handleAdminLock}
                 title="관리자 모드 잠그기 (방문자 화면 테스트)"
-                className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeTheme.cardBg} border-amber-500/40 text-amber-400 hover:bg-amber-500/10 shadow-sm`}
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isDark 
+                    ? `${activeTheme.cardBg} border-amber-500/40 text-amber-400 hover:bg-amber-500/10`
+                    : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 shadow-sm'
+                }`}
               >
                 <Unlock className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">관리자 인증됨 (잠금)</span>
@@ -1010,47 +1070,65 @@ export default function App() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="웹앱 이름 또는 태그 검색..."
-            className={`w-full pl-9 pr-4 py-2 rounded-lg text-xs outline-none border ${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500`}
+            className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs outline-none border transition-all ${
+              isDark 
+                ? `${activeTheme.cardBg} ${activeTheme.border} text-slate-200 placeholder-slate-500` 
+                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-400 shadow-sm'
+            }`}
           />
         </div>
 
-        {/* Hero Portfolio Introduction Widget */}
+        {/* Hero Portfolio Introduction Widget - High-end Deep Emerald Forest Theme */}
         <motion.div 
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className={`mb-8 p-6 sm:p-8 rounded-3xl border relative overflow-hidden backdrop-blur-md shadow-xl transition-all duration-500 ${activeTheme.cardBg} ${activeTheme.border}`}
+          className={`mb-8 p-6 sm:p-8 rounded-3xl border relative overflow-hidden backdrop-blur-xl shadow-2xl transition-all duration-500 ${
+            isDark 
+              ? 'bg-gradient-to-br from-[#063024] via-[#042018] to-[#02140F] border-emerald-500/20 shadow-emerald-950/50' 
+              : 'bg-gradient-to-br from-[#064E3B] via-[#063F31] to-[#022C22] border-emerald-600/30 text-white shadow-xl shadow-emerald-950/20'
+          }`}
         >
-          {/* Subtle line background grid effect */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40"></div>
+          {/* Subtle line background grid effect with emerald glow */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(52,211,153,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(52,211,153,0.06)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none"></div>
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-neutral-500/10 dark:bg-white/5 border border-neutral-200/10 text-neutral-400 dark:text-neutral-300 text-[10px] font-bold tracking-wider uppercase font-mono shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                Expert Dev Workspace Active
+            <div className="space-y-3.5 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-950/60 text-emerald-300 text-[10px] font-bold tracking-wider uppercase font-mono shadow-sm backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                <span>Expert Dev Workspace Active</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400 font-display">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-100 to-teal-200 drop-shadow-sm">
                 {config.portalTitle || 'My Vibe App Coding Portal'}
               </h2>
-              <p className="text-xs text-neutral-400 dark:text-neutral-400 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed font-medium">
                 Vibe Coding 에이전트와 연동하여 직접 구축한 나만의 하이엔드 개발 포털입니다. 학교 과제, 학술 연구, 그리고 사이드 프로젝트 웹앱들을 하나의 공간에서 체계적으로 관리하세요. 드래그앤드롭 re-order 기능을 활용해 최우선 과제 및 추천 항목을 자유롭게 강조할 수 있습니다.
               </p>
             </div>
             
             {/* Real-time statistics counters in a mini-dashboard within the hero */}
-            <div className="flex flex-wrap gap-4 sm:gap-5 self-start md:self-center">
+            <div className="flex flex-wrap gap-3 sm:gap-4 self-start md:self-center">
               {categories.map((cat) => {
                 const count = apps.filter(app => app.category === cat.id).length;
-                const catStyles = getCategoryStyles(cat.id);
+                const isSchool = cat.id === 'school' || cat.name.includes('학교');
+                const isPersonal = cat.id === 'personal' || cat.name.includes('개인');
+                const numColor = isSchool ? 'text-sky-300' : isPersonal ? 'text-purple-300' : 'text-emerald-300';
+                const iconColor = isSchool ? 'text-sky-400' : isPersonal ? 'text-purple-400' : 'text-emerald-400';
+                
                 return (
-                  <div key={cat.id} className="p-4 px-6 rounded-2xl bg-black/30 dark:bg-black/40 border border-neutral-800/60 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg hover:border-indigo-500/20 transition-all duration-300 min-w-[100px]">
-                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <DynamicIcon name={cat.icon || 'Folder'} className={`w-3.5 h-3.5 ${catStyles.accentColor || 'text-indigo-400'}`} />
+                  <div 
+                    key={cat.id} 
+                    className="p-3.5 sm:p-4 px-5 sm:px-6 rounded-2xl border border-emerald-500/25 bg-emerald-950/40 hover:bg-emerald-900/50 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[100px] sm:min-w-[110px] shadow-lg shadow-emerald-950/40 hover:border-emerald-400/50 hover:scale-105"
+                  >
+                    <span className="text-[10px] sm:text-xs text-emerald-200/90 font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <DynamicIcon name={cat.icon || 'Folder'} className={`w-3.5 h-3.5 ${iconColor}`} />
                       {cat.name}
                     </span>
-                    <span className={`text-2xl font-black ${catStyles.accentColor || 'text-indigo-400'} font-display mt-1`}>{count}</span>
-                    <span className="text-[9px] text-neutral-600 font-mono mt-0.5">Projects</span>
+                    <span className={`text-2xl sm:text-3xl font-black font-display mt-1 ${numColor} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]`}>{count}</span>
+                    <span className="text-[9px] font-mono mt-0.5 font-medium text-emerald-300/60">Projects</span>
                   </div>
                 );
               })}
@@ -1059,29 +1137,33 @@ export default function App() {
         </motion.div>
 
         {/* Categories Tab Selector */}
-        <div className="flex justify-between items-center mb-8 border-b border-neutral-200/10 dark:border-white/5 pb-4">
-          <div className="flex gap-2 p-1.5 bg-neutral-950/40 dark:bg-black/30 border border-neutral-800/40 backdrop-blur-md rounded-2xl flex-wrap relative">
+        <div className={`flex justify-between items-center mb-8 border-b pb-4 ${isDark ? 'border-neutral-200/10' : 'border-slate-200'}`}>
+          <div className={`flex gap-2 p-1.5 border backdrop-blur-md rounded-2xl flex-wrap relative ${
+            isDark ? 'bg-neutral-950/40 border-neutral-800/40' : 'bg-slate-100 border-slate-200 shadow-inner'
+          }`}>
             <button
               onClick={() => setActiveTab('all')}
               className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                 activeTab === 'all'
-                  ? 'text-slate-100 font-extrabold'
-                  : 'text-neutral-400 hover:text-slate-200'
+                  ? (isDark ? 'text-slate-100 font-extrabold' : 'text-slate-900 font-extrabold shadow-sm')
+                  : (isDark ? 'text-neutral-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
               }`}
             >
               {activeTab === 'all' && (
                 <motion.span
                   layoutId="activeTabGlow"
-                  className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                  className={`absolute inset-0 rounded-xl -z-10 ${
+                    isDark ? `${activeTheme.accentBg} border border-white/5` : 'bg-white border border-slate-200 shadow-sm'
+                  }`}
                   transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                 />
               )}
-              <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+              <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
               전체보기
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                 activeTab === 'all'
-                  ? 'bg-amber-500/20 text-amber-300'
-                  : 'bg-neutral-800/60 text-neutral-500'
+                  ? (isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-800')
+                  : (isDark ? 'bg-neutral-800/60 text-neutral-500' : 'bg-slate-200 text-slate-600')
               }`}>
                 {apps.length}
               </span>
@@ -1103,11 +1185,11 @@ export default function App() {
                   onDrop={(e) => handleCatDrop(e, cat.id)}
                   className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
                     isSelected
-                      ? 'text-slate-100 font-extrabold'
-                      : 'text-neutral-400 hover:text-slate-200'
+                      ? (isDark ? 'text-slate-100 font-extrabold' : 'text-slate-900 font-extrabold shadow-sm')
+                      : (isDark ? 'text-neutral-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   } ${draggedCatId === cat.id ? 'opacity-30 border-dashed border-indigo-500/30 scale-95' : ''}`}
                 >
-                  {/* Beautiful Vertical Insertion Divider Line for Category Tabs */}
+                  {/* Vertical Insertion Divider Line for Category Tabs */}
                   {dragOverCatId === cat.id && draggedCatId !== cat.id && dragOverCatPosition && (
                     <div 
                       className={`absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] z-30 animate-pulse pointer-events-none ${
@@ -1122,16 +1204,18 @@ export default function App() {
                   {isSelected && (
                     <motion.span
                       layoutId="activeTabGlow"
-                      className={`absolute inset-0 rounded-xl -z-10 ${activeTheme.accentBg} border border-white/5`}
+                      className={`absolute inset-0 rounded-xl -z-10 ${
+                        isDark ? `${activeTheme.accentBg} border border-white/5` : 'bg-white border border-slate-200 shadow-sm'
+                      }`}
                       transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                     />
                   )}
-                  <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor || 'text-indigo-400'}`} />
+                  <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor}`} />
                   {cat.name}
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                     isSelected
-                      ? 'bg-indigo-500/20 text-indigo-300'
-                      : 'bg-neutral-800/60 text-neutral-500'
+                      ? (isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700')
+                      : (isDark ? 'bg-neutral-800/60 text-neutral-500' : 'bg-slate-200 text-slate-600')
                   }`}>
                     {count}
                   </span>
@@ -1140,7 +1224,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-wider font-mono hidden sm:block">
+          <div className={`text-[11px] font-semibold uppercase tracking-wider font-mono hidden sm:block ${isDark ? 'text-neutral-500' : 'text-slate-400'}`}>
             Order-Priority Matrix Active
           </div>
         </div>
