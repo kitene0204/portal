@@ -1078,57 +1078,44 @@ export default function App() {
           />
         </div>
 
-        {/* Hero Portfolio Introduction Widget - High-end Deep Emerald Forest Theme */}
+        {/* Hero Portfolio Introduction Widget - Pure Solid NAVER GREEN (#2DB400) */}
         <motion.div 
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className={`mb-8 p-6 sm:p-8 rounded-3xl border relative overflow-hidden backdrop-blur-xl shadow-2xl transition-all duration-500 ${
-            isDark 
-              ? 'bg-gradient-to-br from-[#063024] via-[#042018] to-[#02140F] border-emerald-500/20 shadow-emerald-950/50' 
-              : 'bg-gradient-to-br from-[#064E3B] via-[#063F31] to-[#022C22] border-emerald-600/30 text-white shadow-xl shadow-emerald-950/20'
-          }`}
+          className="mb-8 p-6 sm:p-9 lg:p-10 rounded-3xl border border-[#239000] relative overflow-hidden shadow-xl text-white transition-all duration-500 bg-[#2DB400]"
         >
-          {/* Subtle line background grid effect with emerald glow */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(52,211,153,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(52,211,153,0.06)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none"></div>
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3.5 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-950/60 text-emerald-300 text-[10px] font-bold tracking-wider uppercase font-mono shadow-sm backdrop-blur-md">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="space-y-4 max-w-3xl">
+              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-white/40 bg-black/15 text-white text-xs sm:text-sm font-bold tracking-wider uppercase font-mono shadow-sm backdrop-blur-md">
+                <Sparkles className="w-4 h-4 text-white animate-pulse" />
                 <span>Expert Dev Workspace Active</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-100 to-teal-200 drop-shadow-sm">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight font-display text-white drop-shadow-sm leading-tight">
                 {config.portalTitle || 'My Vibe App Coding Portal'}
               </h2>
-              <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed font-medium">
+              <p className="text-sm sm:text-base lg:text-[17px] text-white/95 leading-relaxed font-normal sm:font-medium tracking-normal">
                 Vibe Coding 에이전트와 연동하여 직접 구축한 나만의 하이엔드 개발 포털입니다. 학교 과제, 학술 연구, 그리고 사이드 프로젝트 웹앱들을 하나의 공간에서 체계적으로 관리하세요. 드래그앤드롭 re-order 기능을 활용해 최우선 과제 및 추천 항목을 자유롭게 강조할 수 있습니다.
               </p>
             </div>
             
             {/* Real-time statistics counters in a mini-dashboard within the hero */}
-            <div className="flex flex-wrap gap-3 sm:gap-4 self-start md:self-center">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 self-stretch sm:self-start lg:self-center">
               {categories.map((cat) => {
                 const count = apps.filter(app => app.category === cat.id).length;
-                const isSchool = cat.id === 'school' || cat.name.includes('학교');
-                const isPersonal = cat.id === 'personal' || cat.name.includes('개인');
-                const numColor = isSchool ? 'text-sky-300' : isPersonal ? 'text-purple-300' : 'text-emerald-300';
-                const iconColor = isSchool ? 'text-sky-400' : isPersonal ? 'text-purple-400' : 'text-emerald-400';
                 
                 return (
                   <div 
                     key={cat.id} 
-                    className="p-3.5 sm:p-4 px-5 sm:px-6 rounded-2xl border border-emerald-500/25 bg-emerald-950/40 hover:bg-emerald-900/50 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[100px] sm:min-w-[110px] shadow-lg shadow-emerald-950/40 hover:border-emerald-400/50 hover:scale-105"
+                    className="p-4 sm:p-5 px-5 sm:px-7 rounded-2xl border border-white/30 bg-black/15 hover:bg-black/25 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[110px] sm:min-w-[125px] shadow-sm hover:border-white/60 hover:scale-105"
                   >
-                    <span className="text-[10px] sm:text-xs text-emerald-200/90 font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <DynamicIcon name={cat.icon || 'Folder'} className={`w-3.5 h-3.5 ${iconColor}`} />
+                    <span className="text-xs sm:text-sm text-white font-bold uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <DynamicIcon name={cat.icon || 'Folder'} className="w-4 h-4 text-white" />
                       {cat.name}
                     </span>
-                    <span className={`text-2xl sm:text-3xl font-black font-display mt-1 ${numColor} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]`}>{count}</span>
-                    <span className="text-[9px] font-mono mt-0.5 font-medium text-emerald-300/60">Projects</span>
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-black font-display my-1 text-white">{count}</span>
+                    <span className="text-[10px] sm:text-xs font-mono font-semibold text-white/80">Projects</span>
                   </div>
                 );
               })}
