@@ -547,6 +547,30 @@ export default function SettingsPanel({
     resetAppForm();
   };
 
+  // Save/Add App and Save General and Close Drawer
+  const handleSaveAndClose = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (activeTab === 'apps') {
+      const hasStartedForm = Boolean(appTitle.trim() || appLink.trim() || editingAppId);
+      if (hasStartedForm) {
+        if (!appTitle.trim()) {
+          alert('웹앱 이름을 입력해주세요.');
+          appTitleInputRef.current?.focus();
+          return;
+        }
+        if (!appLink.trim()) {
+          alert('웹앱 링크 URL을 입력해주세요.');
+          return;
+        }
+        handleSaveApp();
+      }
+    }
+
+    handleSaveGeneral();
+    onClose();
+  };
+
   // Delete App
   const handleDeleteApp = (id: string) => {
     if (confirm('이 포털 항목을 정말 삭제하시겠습니까?')) {
@@ -981,12 +1005,24 @@ export default function SettingsPanel({
           <div className="space-y-6">
             {/* Dynamic Add / Edit Header */}
             <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-950/50">
-              <h3 className="text-xs font-semibold tracking-wide text-neutral-300 flex items-center gap-1.5 mb-3">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                {editingAppId ? '웹앱 정보 수정하기' : '새 웹앱 정보 추가하기'}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold tracking-wide text-neutral-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  {editingAppId ? '웹앱 정보 수정하기' : '새 웹앱 정보 추가하기'}
+                </h3>
+                {editingAppId && (
+                  <button
+                    type="button"
+                    onClick={resetAppForm}
+                    className="text-[11px] text-neutral-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>수정 취소</span>
+                  </button>
+                )}
+              </div>
               
-              <form onSubmit={handleSaveApp} className="space-y-3.5 text-xs">
+              <form onSubmit={handleSaveAndClose} className="space-y-3.5 text-xs">
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 이름 *</label>
                   <input
@@ -995,7 +1031,7 @@ export default function SettingsPanel({
                     required
                     value={appTitle}
                     onChange={(e) => setAppTitle(e.target.value)}
-                    placeholder="예: 급식 알리미 위젯"
+                    placeholder="예: 도장 만들기, 급식 알리미"
                     className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -1029,22 +1065,14 @@ export default function SettingsPanel({
 
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 링크 URL *</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      required
-                      value={appLink}
-                      onChange={(e) => setAppLink(e.target.value)}
-                      placeholder="https://example.com/myapp"
-                      className="flex-1 min-w-0 px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      {editingAppId ? '수정 완료' : '등록'}
-                    </button>
-                  </div>
+                  <input
+                    type="url"
+                    required
+                    value={appLink}
+                    onChange={(e) => setAppLink(e.target.value)}
+                    placeholder="https://example.com/myapp"
+                    className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500"
+                  />
                 </div>
 
                 <div>
@@ -1114,7 +1142,7 @@ export default function SettingsPanel({
                             <Check className="w-3.5 h-3.5" />
                             <span>썸네일 이미지 준비 완료</span>
                           </div>
-                          <p className="text-[10px] text-neutral-400">아래 [수정 완료 및 저장하기] 버튼을 누르면 즉시 반영됩니다.</p>
+                          <p className="text-[10px] text-neutral-400">하단 [저장 및 닫기]를 누르면 즉시 포털에 반영됩니다.</p>
                         </div>
                       </div>
 
@@ -1209,26 +1237,6 @@ export default function SettingsPanel({
                     placeholder="React, AI, 급식, 실시간"
                     className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 text-xs"
                   />
-                </div>
-
-                {/* Prominent High-Visibility Save Actions Bar */}
-                <div className="pt-3 border-t border-neutral-800/80 flex items-center gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-950/30 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>{editingAppId ? '웹앱 정보 수정 및 저장하기' : '새 웹앱 등록하기'}</span>
-                  </button>
-                  {editingAppId && (
-                    <button
-                      type="button"
-                      onClick={resetAppForm}
-                      className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      수정 취소
-                    </button>
-                  )}
                 </div>
               </form>
             </div>
@@ -1383,22 +1391,23 @@ export default function SettingsPanel({
       {/* Sticky Bottom Actions */}
       <div className="p-4 border-t border-neutral-800 bg-neutral-950 flex items-center justify-end gap-3">
         <button
-          onClick={() => {
-            // Automatically save the currently typed app details if the form is filled on the apps tab
-            if (activeTab === 'apps' && appTitle.trim() && appLink.trim()) {
-              handleSaveApp();
-            }
-            handleSaveGeneral();
-            onClose();
-          }}
-          className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/25 cursor-pointer"
+          type="button"
+          onClick={handleSaveAndClose}
+          className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/40 cursor-pointer hover:scale-[1.01]"
         >
           <Check className="w-4 h-4" />
-          <span>저장 및 닫기</span>
+          <span>
+            {activeTab === 'apps' && editingAppId
+              ? '수정 완료 및 저장 후 닫기'
+              : activeTab === 'apps' && (appTitle.trim() || appLink.trim())
+              ? '웹앱 등록 및 저장 후 닫기'
+              : '저장 및 닫기'}
+          </span>
         </button>
         <button
+          type="button"
           onClick={onClose}
-          className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+          className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
         >
           취소
         </button>
