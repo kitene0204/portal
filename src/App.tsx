@@ -25,7 +25,8 @@ import {
   Unlock,
   KeyRound,
   ShieldCheck,
-  Copy
+  Copy,
+  Trash2
 } from 'lucide-react';
 
 import { 
@@ -136,6 +137,50 @@ export default function App() {
       setSettingsEditingAppId(appId);
       setShowSettings(true);
     }, '웹앱 세부사항 수정', '이 웹앱의 정보 및 링크를 수정하려면 관리자 비밀번호를 입력해 주세요.');
+  };
+
+  const handleDirectDeleteApp = (appId: string, appTitle?: string) => {
+    requireAdmin(async () => {
+      const titleText = appTitle ? `"${appTitle}" ` : '선택한 ';
+      if (window.confirm(`${titleText}웹앱 항목을 정말 삭제하시겠습니까?`)) {
+        const filtered = data.apps.filter(app => app.id !== appId);
+        
+        const defaultCategories: CategoryTab[] = [
+          { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+          { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+        ];
+        const categoriesList = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
+
+        const finalApps: VibeApp[] = [];
+        categoriesList.forEach((cat) => {
+          const catApps = filtered.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        });
+        const knownCategoryIds = categoriesList.map(c => c.id);
+        const otherApps = filtered.filter(a => !knownCategoryIds.includes(a.category));
+        finalApps.push(...otherApps);
+
+        const newData: PortalData = {
+          ...data,
+          apps: finalApps
+        };
+        setData(newData);
+        setSyncStatus('syncing');
+        try {
+          const result = await savePortalData(newData);
+          if (result.success) {
+            setSyncStatus('synced');
+          } else {
+            setSyncStatus('error');
+            setSyncError(result.error);
+          }
+        } catch (err: any) {
+          setSyncStatus('error');
+          setSyncError(err.message || '삭제 중 오류가 발생했습니다.');
+        }
+      }
+    }, '웹앱 삭제', '웹앱을 삭제하려면 관리자 비밀번호를 입력해 주세요.');
   };
   
   // Sync Statuses
@@ -1374,6 +1419,17 @@ export default function App() {
                         >
                           <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
                         </button>
+                        <button
+                          type="button"
+                          title="웹앱 바로 삭제"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDirectDeleteApp(app.id, app.title);
+                          }}
+                          className="p-1 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 rounded-md transition-colors cursor-pointer group/delbtn"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 transition-transform group-hover/delbtn:scale-110" />
+                        </button>
                         <div 
                           className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
                           onMouseDown={() => { isDraggingFromHandleRef.current = app.id; }}
@@ -1566,6 +1622,17 @@ export default function App() {
                       >
                         <Settings className="w-4 h-4 transition-transform group-hover/editbtn:rotate-45" />
                       </button>
+                      <button
+                        type="button"
+                        title="웹앱 바로 삭제"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDirectDeleteApp(app.id, app.title);
+                        }}
+                        className="p-2.5 rounded-xl border border-neutral-800 hover:border-rose-500/50 hover:bg-rose-500/10 text-neutral-400 hover:text-rose-400 transition-all cursor-pointer group/delbtn"
+                      >
+                        <Trash2 className="w-4 h-4 transition-transform group-hover/delbtn:scale-110" />
+                      </button>
                       <a
                         href={app.link}
                         target="_blank"
@@ -1654,6 +1721,17 @@ export default function App() {
                                className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded-lg transition-colors cursor-pointer group/editbtn"
                              >
                                <Settings className="w-4 h-4 transition-transform group-hover/editbtn:rotate-45" />
+                             </button>
+                             <button
+                               type="button"
+                               title="웹앱 바로 삭제"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleDirectDeleteApp(filteredApps[0].id, filteredApps[0].title);
+                               }}
+                               className="p-1 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer group/delbtn"
+                             >
+                               <Trash2 className="w-4 h-4 transition-transform group-hover/delbtn:scale-110" />
                              </button>
                              <div 
                                className="p-1 cursor-grab active:cursor-grabbing hover:bg-neutral-800/20 rounded transition-colors"
@@ -1813,6 +1891,17 @@ export default function App() {
                           >
                             <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
                           </button>
+                          <button
+                            type="button"
+                            title="웹앱 바로 삭제"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDirectDeleteApp(app.id, app.title);
+                            }}
+                            className="p-1 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 rounded transition-colors cursor-pointer group/delbtn"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 transition-transform group-hover/delbtn:scale-110" />
+                          </button>
                           <ChevronRight className="w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform group-hover:translate-x-1" />
                         </div>
                       </div>
@@ -1950,6 +2039,17 @@ export default function App() {
                                     className="p-1 hover:bg-indigo-500/20 text-neutral-400 hover:text-indigo-400 rounded transition-colors cursor-pointer group/editbtn"
                                   >
                                     <Settings className="w-3.5 h-3.5 transition-transform group-hover/editbtn:rotate-45" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title="웹앱 바로 삭제"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDirectDeleteApp(app.id, app.title);
+                                    }}
+                                    className="p-1 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 rounded transition-colors cursor-pointer group/delbtn"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 transition-transform group-hover/delbtn:scale-110" />
                                   </button>
                                 </div>
                               </div>
