@@ -779,31 +779,55 @@ export default function App() {
 
   // Save configurations helper
   const handleSaveConfig = async (newConfig: PortalConfig) => {
-    const updatedData = { ...data, config: newConfig };
-    setData(updatedData);
-    setSyncStatus('syncing');
-    const result = await savePortalData(updatedData);
-    setDataSource(result.source);
-    if (result.error) {
-      setSyncStatus('error');
-      setSyncError(result.error);
-    } else {
-      setSyncStatus('synced');
-    }
+    setData(prev => {
+      const updatedData = { ...prev, config: newConfig };
+      savePortalData(updatedData).then(result => {
+        setDataSource(result.source);
+        if (result.error) {
+          setSyncStatus('error');
+          setSyncError(result.error);
+        } else {
+          setSyncStatus('synced');
+        }
+      });
+      return updatedData;
+    });
   };
 
   // Save app items list helper
   const handleSaveApps = async (newApps: VibeApp[]) => {
-    const updatedData = { ...data, apps: newApps };
+    setData(prev => {
+      const updatedData = { ...prev, apps: newApps };
+      savePortalData(updatedData).then(result => {
+        setDataSource(result.source);
+        if (result.error) {
+          setSyncStatus('error');
+          setSyncError(result.error);
+        } else {
+          setSyncStatus('synced');
+        }
+      });
+      return updatedData;
+    });
+  };
+
+  // Save both config and apps atomically without race conditions
+  const handleSaveAll = async (newConfig: PortalConfig, newApps: VibeApp[]) => {
+    const updatedData: PortalData = { config: newConfig, apps: newApps };
     setData(updatedData);
     setSyncStatus('syncing');
-    const result = await savePortalData(updatedData);
-    setDataSource(result.source);
-    if (result.error) {
+    try {
+      const result = await savePortalData(updatedData);
+      setDataSource(result.source);
+      if (result.error) {
+        setSyncStatus('error');
+        setSyncError(result.error);
+      } else {
+        setSyncStatus('synced');
+      }
+    } catch (err: any) {
       setSyncStatus('error');
-      setSyncError(result.error);
-    } else {
-      setSyncStatus('synced');
+      setSyncError(err.message || '저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -2106,6 +2130,7 @@ export default function App() {
                 apps={apps}
                 onSaveConfig={handleSaveConfig}
                 onSaveApps={handleSaveApps}
+                onSaveAll={handleSaveAll}
                 onClose={() => setShowSettings(false)}
                 initialTab={settingsInitialTab}
                 initialEditingAppId={settingsEditingAppId}

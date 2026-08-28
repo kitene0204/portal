@@ -51,6 +51,7 @@ interface SettingsPanelProps {
   apps: VibeApp[];
   onSaveConfig: (config: PortalConfig) => void;
   onSaveApps: (apps: VibeApp[]) => void;
+  onSaveAll?: (config: PortalConfig, apps: VibeApp[]) => void;
   onClose: () => void;
   initialTab?: 'general' | 'apps';
   initialEditingAppId?: string | null;
@@ -77,6 +78,7 @@ export default function SettingsPanel({
   apps,
   onSaveConfig,
   onSaveApps,
+  onSaveAll,
   onClose,
   initialTab = 'general',
   initialEditingAppId = null,
@@ -551,6 +553,8 @@ export default function SettingsPanel({
   const handleSaveAndClose = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
+    let targetApps = apps;
+
     if (activeTab === 'apps') {
       const hasStartedForm = Boolean(appTitle.trim() || appLink.trim() || editingAppId);
       if (hasStartedForm) {
@@ -563,11 +567,95 @@ export default function SettingsPanel({
           alert('웹앱 링크 URL을 입력해주세요.');
           return;
         }
-        handleSaveApp();
+
+        let formattedLink = appLink.trim();
+        if (!/^https?:\/\//i.test(formattedLink)) {
+          formattedLink = 'https://' + formattedLink;
+        }
+
+        const tags = appTagsInput
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0);
+
+        if (editingAppId) {
+          const updatedApps = apps.map(app => {
+            if (app.id === editingAppId) {
+              return {
+                ...app,
+                title: appTitle.trim(),
+                link: formattedLink,
+                category: appCategory,
+                order: Number(appOrder),
+                description: appDescription.trim(),
+                icon: appIcon,
+                tags,
+                thumbnail: appThumbnail
+              };
+            }
+            return app;
+          });
+
+          const finalApps: VibeApp[] = [];
+          categories.forEach((cat) => {
+            const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+            catApps.forEach((app, i) => { app.order = i + 1; });
+            finalApps.push(...catApps);
+          });
+          const knownCategoryIds = categories.map(c => c.id);
+          const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+          finalApps.push(...otherApps);
+
+          targetApps = finalApps;
+        } else {
+          const newApp: VibeApp = {
+            id: Date.now().toString(),
+            title: appTitle.trim(),
+            link: formattedLink,
+            category: appCategory,
+            order: Number(appOrder),
+            description: appDescription.trim(),
+            icon: appIcon,
+            tags,
+            thumbnail: appThumbnail
+          };
+          const updatedApps = [...apps, newApp];
+
+          const finalApps: VibeApp[] = [];
+          categories.forEach((cat) => {
+            const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+            catApps.forEach((app, i) => { app.order = i + 1; });
+            finalApps.push(...catApps);
+          });
+          const knownCategoryIds = categories.map(c => c.id);
+          const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+          finalApps.push(...otherApps);
+
+          targetApps = finalApps;
+        }
       }
     }
 
-    handleSaveGeneral();
+    const latestConfig: PortalConfig = {
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName,
+      categories,
+      adminPassword,
+      lockAdmin
+    };
+
+    if (onSaveAll) {
+      onSaveAll(latestConfig, targetApps);
+    } else {
+      onSaveConfig(latestConfig);
+      onSaveApps(targetApps);
+    }
+
+    resetAppForm();
     onClose();
   };
 
@@ -1066,7 +1154,7 @@ export default function SettingsPanel({
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 링크 URL *</label>
                   <input
-                    type="url"
+                    type="text"
                     required
                     value={appLink}
                     onChange={(e) => setAppLink(e.target.value)}
