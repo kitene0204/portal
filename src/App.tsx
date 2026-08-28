@@ -130,11 +130,31 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'general' | 'apps'>('general');
   const [settingsEditingAppId, setSettingsEditingAppId] = useState<string | null>(null);
+  const [settingsInitialCategory, setSettingsInitialCategory] = useState<string | null>(null);
+
+  const handleQuickAddApp = (categoryId?: string) => {
+    const defaultCategories: CategoryTab[] = [
+      { id: 'school', name: data.config.schoolCategoryName || '학교 프로젝트', icon: 'GraduationCap' },
+      { id: 'personal', name: data.config.personalCategoryName || '개인 프로젝트', icon: 'Globe' }
+    ];
+    const categoriesList = data.config.categories && data.config.categories.length > 0 ? data.config.categories : defaultCategories;
+    const targetCategory = categoryId && categoryId !== 'all'
+      ? categoryId
+      : (activeTab !== 'all' ? activeTab : (categoriesList[0]?.id || 'school'));
+
+    requireAdmin(() => {
+      setSettingsInitialTab('apps');
+      setSettingsEditingAppId(null);
+      setSettingsInitialCategory(targetCategory);
+      setShowSettings(true);
+    }, '새 웹앱 등록', '새로운 웹앱을 등록하려면 관리자 비밀번호를 입력해 주세요.');
+  };
 
   const handleOpenAppEdit = (appId: string) => {
     requireAdmin(() => {
       setSettingsInitialTab('apps');
       setSettingsEditingAppId(appId);
+      setSettingsInitialCategory(null);
       setShowSettings(true);
     }, '웹앱 세부사항 수정', '이 웹앱의 정보 및 링크를 수정하려면 관리자 비밀번호를 입력해 주세요.');
   };
@@ -1216,30 +1236,43 @@ export default function App() {
                 const isSelected = activeTab === cat.id;
                 
                 return (
-                  <button 
-                    key={cat.id} 
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(cat.id);
-                      const targetElem = document.getElementById('category-tabs-section');
-                      if (targetElem) {
-                        targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className={`p-4 sm:p-5 px-5 sm:px-7 rounded-2xl border backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[110px] sm:min-w-[125px] cursor-pointer text-left select-none ${
-                      isSelected 
-                        ? 'border-white bg-black/35 shadow-lg scale-105 ring-2 ring-white/50' 
-                        : 'border-white/30 bg-black/15 hover:bg-black/25 hover:border-white/60 hover:scale-105 shadow-sm'
-                    }`}
-                    title={`${cat.name} 카테고리 보기 (${count}개)`}
-                  >
-                    <span className="text-xs sm:text-sm text-white font-bold uppercase tracking-wider font-mono flex items-center gap-1.5 pointer-events-none">
-                      <DynamicIcon name={cat.icon || 'Folder'} className="w-4 h-4 text-white" />
-                      {cat.name}
-                    </span>
-                    <span className="text-3xl sm:text-4xl lg:text-5xl font-black font-display my-1 text-white pointer-events-none">{count}</span>
-                    <span className="text-[10px] sm:text-xs font-mono font-semibold text-white/80 pointer-events-none">Projects</span>
-                  </button>
+                  <div key={cat.id} className="relative group/herocard">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(cat.id);
+                        const targetElem = document.getElementById('category-tabs-section');
+                        if (targetElem) {
+                          targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className={`w-full p-4 sm:p-5 px-5 sm:px-7 rounded-2xl border backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 min-w-[110px] sm:min-w-[125px] cursor-pointer text-left select-none ${
+                        isSelected 
+                          ? 'border-white bg-black/35 shadow-lg scale-105 ring-2 ring-white/50' 
+                          : 'border-white/30 bg-black/15 hover:bg-black/25 hover:border-white/60 hover:scale-105 shadow-sm'
+                      }`}
+                      title={`${cat.name} 카테고리 보기 (${count}개)`}
+                    >
+                      <span className="text-xs sm:text-sm text-white font-bold uppercase tracking-wider font-mono flex items-center gap-1.5 pointer-events-none">
+                        <DynamicIcon name={cat.icon || 'Folder'} className="w-4 h-4 text-white" />
+                        {cat.name}
+                      </span>
+                      <span className="text-3xl sm:text-4xl lg:text-5xl font-black font-display my-1 text-white pointer-events-none">{count}</span>
+                      <span className="text-[10px] sm:text-xs font-mono font-semibold text-white/80 pointer-events-none">Projects</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      title={`"${cat.name}"에 새 웹앱 바로 추가`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuickAddApp(cat.id);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-indigo-600 text-white rounded-lg transition-all shadow-sm border border-white/20 opacity-70 hover:opacity-100 hover:scale-110 cursor-pointer z-10"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -1247,7 +1280,7 @@ export default function App() {
         </motion.div>
 
         {/* Categories Tab Selector */}
-        <div id="category-tabs-section" className={`flex justify-between items-center mb-8 border-b pb-4 ${isDark ? 'border-neutral-200/10' : 'border-slate-200'}`}>
+        <div id="category-tabs-section" className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b pb-4 ${isDark ? 'border-neutral-200/10' : 'border-slate-200'}`}>
           <div className={`flex gap-2 p-1.5 border backdrop-blur-md rounded-2xl flex-wrap relative ${
             isDark ? 'bg-neutral-950/40 border-neutral-800/40' : 'bg-slate-100 border-slate-200 shadow-inner'
           }`}>
@@ -1285,15 +1318,14 @@ export default function App() {
               const isSelected = activeTab === cat.id;
               
               return (
-                <button
+                <div
                   key={cat.id}
-                  onClick={() => setActiveTab(cat.id)}
                   draggable={true}
                   onDragStart={(e) => handleCatDragStart(e, cat.id)}
                   onDragOver={(e) => handleCatDragOver(e, cat.id)}
                   onDragEnd={handleCatDragEnd}
                   onDrop={(e) => handleCatDrop(e, cat.id)}
-                  className={`relative px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 z-10 overflow-hidden ${
+                  className={`relative flex items-center rounded-xl transition-all duration-300 z-10 ${
                     isSelected
                       ? (isDark ? 'text-slate-100 font-extrabold' : 'text-slate-900 font-extrabold shadow-sm')
                       : (isDark ? 'text-neutral-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
@@ -1311,6 +1343,7 @@ export default function App() {
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white border border-indigo-500 shadow-[0_0_4px_rgba(255,255,255,1)]" />
                     </div>
                   )}
+
                   {isSelected && (
                     <motion.span
                       layoutId="activeTabGlow"
@@ -1320,22 +1353,58 @@ export default function App() {
                       transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                     />
                   )}
-                  <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor}`} />
-                  {cat.name}
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                    isSelected
-                      ? (isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700')
-                      : (isDark ? 'bg-neutral-800/60 text-neutral-500' : 'bg-slate-200 text-slate-600')
-                  }`}>
-                    {count}
-                  </span>
-                </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(cat.id)}
+                    className="px-3.5 sm:px-4 py-2.5 text-xs font-semibold tracking-wide cursor-pointer flex items-center gap-2"
+                  >
+                    <DynamicIcon name={cat.icon || 'Folder'} className={`w-4 h-4 ${catStyles.accentColor}`} />
+                    {cat.name}
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                      isSelected
+                        ? (isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700')
+                        : (isDark ? 'bg-neutral-800/60 text-neutral-500' : 'bg-slate-200 text-slate-600')
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+
+                  {/* Direct + Button for this category */}
+                  <button
+                    type="button"
+                    title={`"${cat.name}"에 새 웹앱 바로 추가`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickAddApp(cat.id);
+                    }}
+                    className={`mr-1.5 p-1 rounded-lg transition-all hover:scale-115 active:scale-95 cursor-pointer z-20 ${
+                      isSelected
+                        ? (isDark ? 'bg-white/20 text-white hover:bg-white hover:text-indigo-950 shadow-sm' : 'bg-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white shadow-sm')
+                        : (isDark ? 'bg-neutral-800/80 text-neutral-400 hover:bg-indigo-600 hover:text-white' : 'bg-slate-200 text-slate-600 hover:bg-indigo-600 hover:text-white')
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </div>
               );
             })}
           </div>
 
-          <div className={`text-[11px] font-semibold uppercase tracking-wider font-mono hidden sm:block ${isDark ? 'text-neutral-500' : 'text-slate-400'}`}>
-            Order-Priority Matrix Active
+          <div className="flex items-center gap-3 self-end md:self-center">
+            <button
+              type="button"
+              onClick={() => handleQuickAddApp(activeTab === 'all' ? undefined : activeTab)}
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:from-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-950/30 flex items-center gap-1.5 cursor-pointer hover:scale-105"
+              title={activeTab !== 'all' ? `"${categories.find(c => c.id === activeTab)?.name || '현재 페이지'}"에 새 웹앱 추가` : '새 웹앱 등록'}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ {activeTab !== 'all' ? `${categories.find(c => c.id === activeTab)?.name || '웹앱'} 추가` : '새 웹앱 추가'}</span>
+            </button>
+
+            <div className={`text-[11px] font-semibold uppercase tracking-wider font-mono hidden md:block ${isDark ? 'text-neutral-500' : 'text-slate-400'}`}>
+              Order-Priority Matrix Active
+            </div>
           </div>
         </div>
 
@@ -2139,6 +2208,7 @@ export default function App() {
                 onClose={() => setShowSettings(false)}
                 initialTab={settingsInitialTab}
                 initialEditingAppId={settingsEditingAppId}
+                initialCategory={settingsInitialCategory}
                 onLockAdmin={handleAdminLock}
               />
             </motion.div>

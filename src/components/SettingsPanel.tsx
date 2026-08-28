@@ -55,6 +55,7 @@ interface SettingsPanelProps {
   onClose: () => void;
   initialTab?: 'general' | 'apps';
   initialEditingAppId?: string | null;
+  initialCategory?: string | null;
   onLockAdmin?: () => void;
 }
 
@@ -82,6 +83,7 @@ export default function SettingsPanel({
   onClose,
   initialTab = 'general',
   initialEditingAppId = null,
+  initialCategory = null,
   onLockAdmin
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'apps'>(initialTab);
@@ -108,12 +110,20 @@ export default function SettingsPanel({
   const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);
   const [appAddedSuccessMsg, setAppAddedSuccessMsg] = useState<string | null>(null);
 
+  // Determine starting category
+  const startingCat = (initialCategory && categories.some(c => c.id === initialCategory))
+    ? initialCategory
+    : (categories[0]?.id || 'school');
+
   // App Editor States
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [appTitle, setAppTitle] = useState('');
   const [appLink, setAppLink] = useState('');
-  const [appCategory, setAppCategory] = useState<string>('school');
-  const [appOrder, setAppOrder] = useState(1);
+  const [appCategory, setAppCategory] = useState<string>(startingCat);
+  const [appOrder, setAppOrder] = useState<number>(() => {
+    const catCount = apps.filter(a => a.category === startingCat).length;
+    return catCount + 1;
+  });
   const [appDescription, setAppDescription] = useState('');
   const [appIcon, setAppIcon] = useState('Globe');
   const [appTagsInput, setAppTagsInput] = useState('');
@@ -124,7 +134,7 @@ export default function SettingsPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const appTitleInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto edit initial app if provided
+  // Auto edit initial app or focus on quick-add category
   useEffect(() => {
     if (initialEditingAppId) {
       const targetApp = apps.find(a => a.id === initialEditingAppId);
@@ -132,8 +142,16 @@ export default function SettingsPanel({
         setActiveTab('apps');
         handleStartEdit(targetApp);
       }
+    } else if (initialCategory) {
+      setActiveTab('apps');
+      setAppCategory(initialCategory);
+      const catCount = apps.filter(a => a.category === initialCategory).length;
+      setAppOrder(catCount + 1);
+      setTimeout(() => {
+        appTitleInputRef.current?.focus();
+      }, 150);
     }
-  }, [initialEditingAppId]);
+  }, [initialEditingAppId, initialCategory]);
 
   // Drag & Drop Apps list in Settings states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -446,8 +464,10 @@ export default function SettingsPanel({
     setEditingAppId(null);
     setAppTitle('');
     setAppLink('');
-    setAppCategory(categories[0]?.id || 'school');
-    setAppOrder(apps.length + 1);
+    const defaultCat = categories[0]?.id || 'school';
+    setAppCategory(defaultCat);
+    const categoryAppsCount = apps.filter(a => a.category === defaultCat).length;
+    setAppOrder(categoryAppsCount + 1);
     setAppDescription('');
     setAppIcon('Globe');
     setAppTagsInput('');
@@ -505,31 +525,38 @@ export default function SettingsPanel({
 
     if (editingAppId) {
       // Editing
-      const updatedApps = apps.map(app => {
-        if (app.id === editingAppId) {
-          return {
-            ...app,
-            title: savedTitle,
-            link: formattedLink,
-            category: appCategory,
-            order: Number(appOrder),
-            description: appDescription.trim(),
-            icon: appIcon,
-            tags,
-            thumbnail: appThumbnail
-          };
-        }
-        return app;
-      });
+      const targetApp = apps.find(a => a.id === editingAppId);
+      const remainingApps = apps.filter(a => a.id !== editingAppId);
+      
+      const editedApp: VibeApp = {
+        ...(targetApp || { id: editingAppId }),
+        id: editingAppId,
+        title: savedTitle,
+        link: formattedLink,
+        category: appCategory,
+        order: Number(appOrder) || 1,
+        description: appDescription.trim(),
+        icon: appIcon,
+        tags,
+        thumbnail: appThumbnail
+      };
 
       // Re-index dynamically by all categories
       categories.forEach((cat) => {
-        const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
-        catApps.forEach((app, i) => { app.order = i + 1; });
-        finalApps.push(...catApps);
+        if (cat.id === appCategory) {
+          const catApps = remainingApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+          const targetIndex = Math.max(0, Math.min(catApps.length, (Number(appOrder) || 1) - 1));
+          catApps.splice(targetIndex, 0, editedApp);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        } else {
+          const catApps = remainingApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        }
       });
       const knownCategoryIds = categories.map(c => c.id);
-      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+      const otherApps = remainingApps.filter(a => !knownCategoryIds.includes(a.category));
       finalApps.push(...otherApps);
     } else {
       // Adding new
@@ -538,22 +565,29 @@ export default function SettingsPanel({
         title: savedTitle,
         link: formattedLink,
         category: appCategory,
-        order: Number(appOrder),
+        order: Number(appOrder) || 1,
         description: appDescription.trim(),
         icon: appIcon,
         tags,
         thumbnail: appThumbnail
       };
-      const updatedApps = [...apps, newApp];
 
       // Re-index dynamically by all categories
       categories.forEach((cat) => {
-        const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
-        catApps.forEach((app, i) => { app.order = i + 1; });
-        finalApps.push(...catApps);
+        if (cat.id === appCategory) {
+          const catApps = apps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+          const targetIndex = Math.max(0, Math.min(catApps.length, (Number(appOrder) || 1) - 1));
+          catApps.splice(targetIndex, 0, newApp);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        } else {
+          const catApps = apps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+          catApps.forEach((app, i) => { app.order = i + 1; });
+          finalApps.push(...catApps);
+        }
       });
       const knownCategoryIds = categories.map(c => c.id);
-      const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+      const otherApps = apps.filter(a => !knownCategoryIds.includes(a.category));
       finalApps.push(...otherApps);
     }
 
@@ -612,31 +646,38 @@ export default function SettingsPanel({
           .filter(tag => tag.length > 0);
 
         if (editingAppId) {
-          const updatedApps = apps.map(app => {
-            if (app.id === editingAppId) {
-              return {
-                ...app,
-                title: appTitle.trim(),
-                link: formattedLink,
-                category: appCategory,
-                order: Number(appOrder),
-                description: appDescription.trim(),
-                icon: appIcon,
-                tags,
-                thumbnail: appThumbnail
-              };
-            }
-            return app;
-          });
+          const targetApp = apps.find(a => a.id === editingAppId);
+          const remainingApps = apps.filter(a => a.id !== editingAppId);
+          
+          const editedApp: VibeApp = {
+            ...(targetApp || { id: editingAppId }),
+            id: editingAppId,
+            title: appTitle.trim(),
+            link: formattedLink,
+            category: appCategory,
+            order: Number(appOrder) || 1,
+            description: appDescription.trim(),
+            icon: appIcon,
+            tags,
+            thumbnail: appThumbnail
+          };
 
           const finalApps: VibeApp[] = [];
           categories.forEach((cat) => {
-            const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
-            catApps.forEach((app, i) => { app.order = i + 1; });
-            finalApps.push(...catApps);
+            if (cat.id === appCategory) {
+              const catApps = remainingApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+              const targetIndex = Math.max(0, Math.min(catApps.length, (Number(appOrder) || 1) - 1));
+              catApps.splice(targetIndex, 0, editedApp);
+              catApps.forEach((app, i) => { app.order = i + 1; });
+              finalApps.push(...catApps);
+            } else {
+              const catApps = remainingApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+              catApps.forEach((app, i) => { app.order = i + 1; });
+              finalApps.push(...catApps);
+            }
           });
           const knownCategoryIds = categories.map(c => c.id);
-          const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+          const otherApps = remainingApps.filter(a => !knownCategoryIds.includes(a.category));
           finalApps.push(...otherApps);
 
           targetApps = finalApps;
@@ -646,22 +687,29 @@ export default function SettingsPanel({
             title: appTitle.trim(),
             link: formattedLink,
             category: appCategory,
-            order: Number(appOrder),
+            order: Number(appOrder) || 1,
             description: appDescription.trim(),
             icon: appIcon,
             tags,
             thumbnail: appThumbnail
           };
-          const updatedApps = [...apps, newApp];
 
           const finalApps: VibeApp[] = [];
           categories.forEach((cat) => {
-            const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
-            catApps.forEach((app, i) => { app.order = i + 1; });
-            finalApps.push(...catApps);
+            if (cat.id === appCategory) {
+              const catApps = apps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+              const targetIndex = Math.max(0, Math.min(catApps.length, (Number(appOrder) || 1) - 1));
+              catApps.splice(targetIndex, 0, newApp);
+              catApps.forEach((app, i) => { app.order = i + 1; });
+              finalApps.push(...catApps);
+            } else {
+              const catApps = apps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
+              catApps.forEach((app, i) => { app.order = i + 1; });
+              finalApps.push(...catApps);
+            }
           });
           const knownCategoryIds = categories.map(c => c.id);
-          const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
+          const otherApps = apps.filter(a => !knownCategoryIds.includes(a.category));
           finalApps.push(...otherApps);
 
           targetApps = finalApps;
@@ -1162,7 +1210,14 @@ export default function SettingsPanel({
                     <label className="block text-[11px] text-neutral-400 mb-1 font-medium">분류 탭 *</label>
                     <select
                       value={appCategory}
-                      onChange={(e) => setAppCategory(e.target.value)}
+                      onChange={(e) => {
+                        const newCat = e.target.value;
+                        setAppCategory(newCat);
+                        if (!editingAppId) {
+                          const catCount = apps.filter(a => a.category === newCat).length;
+                          setAppOrder(catCount + 1);
+                        }
+                      }}
                       className="w-full px-2 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 focus:outline-none focus:border-indigo-500"
                     >
                       {categories.map((cat) => (
