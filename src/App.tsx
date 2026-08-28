@@ -822,12 +822,17 @@ export default function App() {
       if (result.error) {
         setSyncStatus('error');
         setSyncError(result.error);
+        setSyncToastMessage('⚠️ 저장 알림: ' + result.error);
       } else {
         setSyncStatus('synced');
+        setSyncCompletedRecently(true);
+        setSyncToastMessage(`✅ 설정 및 웹앱 (${newApps.length}개) 정상 저장 완료!`);
+        setTimeout(() => setSyncCompletedRecently(false), 3000);
       }
     } catch (err: any) {
       setSyncStatus('error');
       setSyncError(err.message || '저장 중 오류가 발생했습니다.');
+      setSyncToastMessage('⚠️ 저장 실패: ' + (err.message || '오류 발생'));
     }
   };
 

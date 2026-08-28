@@ -7,9 +7,9 @@
  */
 export const compressImageFile = (
   file: File,
-  maxWidth = 320,
-  maxHeight = 240,
-  quality = 0.70
+  maxWidth = 200,
+  maxHeight = 200,
+  quality = 0.65
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -70,9 +70,9 @@ export const compressImageFile = (
  */
 export const compressBase64String = (
   base64Str: string,
-  maxWidth = 320,
-  maxHeight = 240,
-  quality = 0.70
+  maxWidth = 200,
+  maxHeight = 200,
+  quality = 0.65
 ): Promise<string> => {
   return new Promise((resolve) => {
     if (!base64Str || !base64Str.startsWith('data:image')) {
@@ -127,7 +127,7 @@ export const compressBase64String = (
 };
 
 /**
- * Automatically cleans up existing large base64 thumbnails (anything > 80KB) in an apps array
+ * Automatically cleans up existing large base64 thumbnails in an apps array
  */
 export const purgeLargeThumbnails = async (apps: any[]): Promise<{ apps: any[]; purgedCount: number }> => {
   let purgedCount = 0;
@@ -142,15 +142,11 @@ export const purgeLargeThumbnails = async (apps: any[]): Promise<{ apps: any[]; 
 
       // If it's a data: URL
       if (app.thumbnail.startsWith('data:')) {
-        // If string length > 60,000 (roughly >45KB), recompress or strip
-        if (app.thumbnail.length > 60000) {
+        // If string length > 25,000 (roughly >18KB), recompress
+        if (app.thumbnail.length > 25000) {
           purgedCount++;
           try {
-            const recompressed = await compressBase64String(app.thumbnail, 300, 200, 0.65);
-            // If still too large, strip to keep local storage completely safe
-            if (recompressed.length > 50000) {
-              return { ...app, thumbnail: '' };
-            }
+            const recompressed = await compressBase64String(app.thumbnail, 200, 200, 0.60);
             return { ...app, thumbnail: recompressed };
           } catch {
             return { ...app, thumbnail: '' };

@@ -106,6 +106,7 @@ export default function SettingsPanel({
   const [lockAdmin, setLockAdmin] = useState(config.lockAdmin !== false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);
+  const [appAddedSuccessMsg, setAppAddedSuccessMsg] = useState<string | null>(null);
 
   // App Editor States
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
@@ -479,12 +480,28 @@ export default function SettingsPanel({
   // Save/Add App
   const handleSaveApp = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!appTitle.trim() || !appLink.trim()) return;
+    if (!appTitle.trim()) {
+      alert('웹앱 이름을 입력해주세요.');
+      appTitleInputRef.current?.focus();
+      return;
+    }
+    if (!appLink.trim()) {
+      alert('웹앱 링크 URL을 입력해주세요.');
+      return;
+    }
+
+    let formattedLink = appLink.trim();
+    if (!/^https?:\/\//i.test(formattedLink)) {
+      formattedLink = 'https://' + formattedLink;
+    }
 
     const tags = appTagsInput
       .split(',')
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0);
+
+    const savedTitle = appTitle.trim();
+    let finalApps: VibeApp[] = [];
 
     if (editingAppId) {
       // Editing
@@ -492,11 +509,11 @@ export default function SettingsPanel({
         if (app.id === editingAppId) {
           return {
             ...app,
-            title: appTitle,
-            link: appLink,
+            title: savedTitle,
+            link: formattedLink,
             category: appCategory,
             order: Number(appOrder),
-            description: appDescription,
+            description: appDescription.trim(),
             icon: appIcon,
             tags,
             thumbnail: appThumbnail
@@ -506,7 +523,6 @@ export default function SettingsPanel({
       });
 
       // Re-index dynamically by all categories
-      const finalApps: VibeApp[] = [];
       categories.forEach((cat) => {
         const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
         catApps.forEach((app, i) => { app.order = i + 1; });
@@ -515,17 +531,15 @@ export default function SettingsPanel({
       const knownCategoryIds = categories.map(c => c.id);
       const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
       finalApps.push(...otherApps);
-
-      onSaveApps(finalApps);
     } else {
       // Adding new
       const newApp: VibeApp = {
         id: Date.now().toString(),
-        title: appTitle,
-        link: appLink,
+        title: savedTitle,
+        link: formattedLink,
         category: appCategory,
         order: Number(appOrder),
-        description: appDescription,
+        description: appDescription.trim(),
         icon: appIcon,
         tags,
         thumbnail: appThumbnail
@@ -533,7 +547,6 @@ export default function SettingsPanel({
       const updatedApps = [...apps, newApp];
 
       // Re-index dynamically by all categories
-      const finalApps: VibeApp[] = [];
       categories.forEach((cat) => {
         const catApps = updatedApps.filter(a => a.category === cat.id).sort((a, b) => a.order - b.order);
         catApps.forEach((app, i) => { app.order = i + 1; });
@@ -542,9 +555,29 @@ export default function SettingsPanel({
       const knownCategoryIds = categories.map(c => c.id);
       const otherApps = updatedApps.filter(a => !knownCategoryIds.includes(a.category));
       finalApps.push(...otherApps);
+    }
 
+    const latestConfig: PortalConfig = {
+      ...config,
+      portalTitle,
+      layoutId,
+      themeId,
+      schoolCategoryName,
+      personalCategoryName,
+      categories,
+      adminPassword,
+      lockAdmin
+    };
+
+    if (onSaveAll) {
+      onSaveAll(latestConfig, finalApps);
+    } else {
+      onSaveConfig(latestConfig);
       onSaveApps(finalApps);
     }
+
+    setAppAddedSuccessMsg(editingAppId ? `✨ "${savedTitle}" 웹앱이 수정되었습니다!` : `✨ "${savedTitle}" 웹앱이 정상 등록되었습니다! (목록에 반영됨)`);
+    setTimeout(() => setAppAddedSuccessMsg(null), 3500);
 
     resetAppForm();
   };
@@ -1110,7 +1143,7 @@ export default function SettingsPanel({
                 )}
               </div>
               
-              <form onSubmit={handleSaveAndClose} className="space-y-3.5 text-xs">
+              <form onSubmit={handleSaveApp} className="space-y-3.5 text-xs">
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1 font-medium">웹앱 이름 *</label>
                   <input
@@ -1326,6 +1359,32 @@ export default function SettingsPanel({
                     className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-md text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500 text-xs"
                   />
                 </div>
+
+                <div className="pt-1.5">
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/40 cursor-pointer hover:scale-[1.01]"
+                  >
+                    {editingAppId ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>웹앱 수정 완료 (즉시 저장)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ 새 웹앱 등록하기 (즉시 저장)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {appAddedSuccessMsg && (
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs text-center font-medium animate-fade-in flex items-center justify-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>{appAddedSuccessMsg}</span>
+                  </div>
+                )}
               </form>
             </div>
 
