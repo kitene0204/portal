@@ -610,10 +610,8 @@ export default function SettingsPanel({
       onSaveApps(finalApps);
     }
 
-    setAppAddedSuccessMsg(editingAppId ? `✨ "${savedTitle}" 웹앱이 수정되었습니다!` : `✨ "${savedTitle}" 웹앱이 정상 등록되었습니다! (목록에 반영됨)`);
-    setTimeout(() => setAppAddedSuccessMsg(null), 3500);
-
     resetAppForm();
+    onClose();
   };
 
   // Save/Add App and Save General and Close Drawer
@@ -1592,27 +1590,33 @@ export default function SettingsPanel({
 
       {/* Sticky Bottom Actions */}
       <div className="p-4 border-t border-neutral-800 bg-neutral-950 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleSaveAndClose}
-          className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/40 cursor-pointer hover:scale-[1.01]"
-        >
-          <Check className="w-4 h-4" />
-          <span>
-            {activeTab === 'apps' && editingAppId
-              ? '수정 완료 및 저장 후 닫기'
-              : activeTab === 'apps' && (appTitle.trim() || appLink.trim())
-              ? '웹앱 등록 및 저장 후 닫기'
-              : '저장 및 닫기'}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-        >
-          취소
-        </button>
+        {activeTab === 'general' ? (
+          <>
+            <button
+              type="button"
+              onClick={handleSaveAndClose}
+              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/40 cursor-pointer hover:scale-[1.01]"
+            >
+              <Check className="w-4 h-4" />
+              <span>설정 저장 및 닫기</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            >
+              취소
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 text-neutral-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>관리자 설정 닫기</span>
+          </button>
+        )}
       </div>
     </div>
   );
