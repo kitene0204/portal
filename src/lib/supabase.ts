@@ -268,4 +268,14 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.vibe_portal_data;
   END IF;
 END $$;
+
+-- 4. 썸네일 이미지 보관함 (고화질 이미지를 파일로 저장하고 주소만 기록)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('portal-thumbs', 'portal-thumbs', true, 5242880, ARRAY['image/webp','image/jpeg','image/png'])
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "portal thumbs upload" ON storage.objects;
+CREATE POLICY "portal thumbs upload" ON storage.objects
+FOR INSERT TO anon, authenticated
+WITH CHECK (bucket_id = 'portal-thumbs');
 `;

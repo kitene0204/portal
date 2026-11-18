@@ -45,7 +45,7 @@ import {
   isSupabaseConfigured,
   SQL_CREATION_SCRIPT 
 } from './lib/supabase';
-import { compressImageFile, purgeLargeThumbnails } from './lib/imageUtils';
+import { compressImageFile, purgeLargeThumbnails, uploadThumbnailFile, findSiteIcon } from './lib/imageUtils';
 import SettingsPanel from './components/SettingsPanel';
 import SupabaseGuide from './components/SupabaseGuide';
 import DynamicIcon from './components/DynamicIcon';
@@ -420,9 +420,9 @@ export default function App() {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
         try {
-          // Fast client-side compression to lightweight WebP/JPEG
-          const compressed = await compressImageFile(file, 600, 600, 0.85);
-          await updateAppThumbnail(id, compressed);
+          // 고화질로 파일 보관함에 올리고 주소만 저장
+          const url = await uploadThumbnailFile(file);
+          await updateAppThumbnail(id, url);
         } catch {
           const reader = new FileReader();
           reader.onload = async () => {
@@ -692,14 +692,7 @@ export default function App() {
       setSyncStatus('syncing');
       const result = await fetchPortalData();
       
-      // Auto-optimize any heavy thumbnails in loaded data
-      if (result.data && Array.isArray(result.data.apps)) {
-        const { apps: optimizedApps, purgedCount } = await purgeLargeThumbnails(result.data.apps);
-        if (purgedCount > 0) {
-          result.data.apps = optimizedApps;
-          savePortalData(result.data); // save lightweight back
-        }
-      }
+      // (예전엔 여기서 열 때마다 썸네일을 200x200 저화질로 다시 줄여 저장했음 → 화질 저하 원인이라 없앰)
 
       setData(result.data);
       setDataSource(result.source);
@@ -814,8 +807,28 @@ export default function App() {
     });
   };
 
+  // 썸네일이 비어 있는 앱은 링크 사이트의 아이콘을 찾아 자동으로 넣음 (한 번 시도한 앱은 다시 안 함)
+  const iconTriedRef = React.useRef<Set<string>>(new Set());
+  const autoFillSiteIcons = async (appsList: VibeApp[]) => {
+    const targets = appsList.filter(a => !a.thumbnail && a.link && !iconTriedRef.current.has(a.id + '|' + a.link));
+    if (!targets.length) return;
+    targets.forEach(a => iconTriedRef.current.add(a.id + '|' + a.link));
+    const results = await Promise.all(targets.map(async a => [a.id, await findSiteIcon(a.link)] as const));
+    const found = new Map(results.filter(([, url]) => !!url));
+    if (!found.size) return;
+    setData(prev => {
+      const updated = {
+        ...prev,
+        apps: prev.apps.map(a => (!a.thumbnail && found.has(a.id) ? { ...a, thumbnail: found.get(a.id)! } : a)),
+      };
+      savePortalData(updated);
+      return updated;
+    });
+  };
+
   // Save app items list helper
   const handleSaveApps = async (newApps: VibeApp[]) => {
+    autoFillSiteIcons(newApps);
     setData(prev => {
       const updatedData = { ...prev, apps: newApps };
       savePortalData(updatedData).then(result => {
@@ -848,6 +861,7 @@ export default function App() {
         setSyncCompletedRecently(true);
         setSyncToastMessage(`✅ 설정 및 웹앱 (${newApps.length}개) 정상 저장 완료!`);
         setTimeout(() => setSyncCompletedRecently(false), 3000);
+        autoFillSiteIcons(newApps);
       }
     } catch (err: any) {
       setSyncStatus('error');

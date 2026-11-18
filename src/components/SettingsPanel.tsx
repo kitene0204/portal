@@ -6,7 +6,7 @@ import {
   DEFAULT_THEMES, 
   DEFAULT_LAYOUTS 
 } from '../types';
-import { compressImageFile, purgeLargeThumbnails } from '../lib/imageUtils';
+import { compressImageFile, purgeLargeThumbnails, uploadThumbnailFile, findSiteIcon } from '../lib/imageUtils';
 import { 
   X, 
   Plus, 
@@ -252,9 +252,9 @@ export default function SettingsPanel({
     }
     setIsCompressingThumbnail(true);
     try {
-      // Compress and optimize thumbnail to max 320x240, ~15-25KB WebP/JPEG for minimum storage
-      const optimizedDataUrl = await compressImageFile(file, 320, 240, 0.70);
-      setAppThumbnail(optimizedDataUrl);
+      // 고화질로 파일 보관함에 올리고 주소만 저장
+      const url = await uploadThumbnailFile(file);
+      setAppThumbnail(url);
       setThumbnailSavedFeedback(true);
       setTimeout(() => setThumbnailSavedFeedback(false), 3000);
     } catch (err) {
@@ -283,6 +283,24 @@ export default function SettingsPanel({
     } finally {
       setIsPurgingStorage(false);
       setTimeout(() => setPurgeResultMsg(null), 4000);
+    }
+  };
+
+  const [isFindingIcon, setIsFindingIcon] = useState(false);
+  const handleFindSiteIcon = async () => {
+    if (!appLink.trim()) { alert('먼저 웹앱 링크 URL을 입력해주세요.'); return; }
+    setIsFindingIcon(true);
+    try {
+      const url = await findSiteIcon(appLink.trim());
+      if (url) {
+        setAppThumbnail(url);
+        setThumbnailSavedFeedback(true);
+        setTimeout(() => setThumbnailSavedFeedback(false), 3000);
+      } else {
+        alert('이 사이트에서 아이콘을 찾지 못했어요. 이미지를 직접 올려 주세요.');
+      }
+    } finally {
+      setIsFindingIcon(false);
     }
   };
 
@@ -1371,8 +1389,16 @@ export default function SettingsPanel({
                             이미지를 드래그하거나 클릭하여 업로드
                           </div>
                           <div className="text-[10px] text-neutral-500 text-center">
-                            PNG, JPG, WebP (자동 최적화 및 압축 저장)
+                            PNG, JPG, WebP (고화질로 저장) · 비워 두면 저장할 때 사이트 아이콘을 자동으로 찾아요
                           </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleFindSiteIcon(); }}
+                            disabled={isFindingIcon}
+                            className="mt-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white rounded-md text-xs font-semibold cursor-pointer transition-colors"
+                          >
+                            {isFindingIcon ? '아이콘 찾는 중...' : '링크에서 사이트 아이콘 가져오기'}
+                          </button>
                         </>
                       )}
                       <input
