@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, KeyRound, Eye, EyeOff, X, ShieldCheck, AlertCircle } from 'lucide-react';
+import { verifyAdminPassword, storeAdminPassword } from '../lib/supabase';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ export default function AdminPasswordModal({
   isOpen,
   onClose,
   onSuccess,
-  expectedPassword = '1234',
+  expectedPassword,
   title = '관리자 인증이 필요합니다',
   description = '포털 정보 및 웹앱 세부사항 수정을 위해 관리자 비밀번호를 입력해 주세요.'
 }: AdminPasswordModalProps) {
@@ -24,6 +25,7 @@ export default function AdminPasswordModal({
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -38,19 +40,27 @@ export default function AdminPasswordModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanInput = password.trim();
-    const targetPassword = (expectedPassword || '1234').trim();
+    if (!cleanInput || isChecking) return;
 
-    if (cleanInput === targetPassword) {
-      if (rememberMe) {
-        localStorage.setItem('vibe_portal_admin_auth', 'true');
-        sessionStorage.setItem('vibe_portal_admin_auth', 'true');
+    setIsChecking(true);
+    let ok: boolean | null = await verifyAdminPassword(cleanInput);
+    setIsChecking(false);
+
+    // 창고(Supabase)에 연결되지 않은 로컬 모드일 때만 예전처럼 화면에서 비교
+    if (ok === null) {
+      if (expectedPassword) {
+        ok = cleanInput === expectedPassword.trim();
       } else {
-        sessionStorage.setItem('vibe_portal_admin_auth', 'true');
-        localStorage.removeItem('vibe_portal_admin_auth');
+        setError('비밀번호를 확인할 수 없습니다. 인터넷 연결을 확인해 주세요.');
+        return;
       }
+    }
+
+    if (ok) {
+      storeAdminPassword(cleanInput, rememberMe);
       setError(null);
       onSuccess();
     } else {

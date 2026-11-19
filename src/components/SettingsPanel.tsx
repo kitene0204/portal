@@ -7,6 +7,7 @@ import {
   DEFAULT_LAYOUTS 
 } from '../types';
 import { compressImageFile, purgeLargeThumbnails, uploadThumbnailFile, findSiteIcon } from '../lib/imageUtils';
+import { getStoredAdminPassword } from '../lib/supabase';
 import { 
   X, 
   Plus, 
@@ -104,7 +105,7 @@ export default function SettingsPanel({
   const [newCatIcon, setNewCatIcon] = useState('Folder');
 
   // Security & Admin Password States
-  const [adminPassword, setAdminPassword] = useState(config.adminPassword || '1234');
+  const [adminPassword, setAdminPassword] = useState(config.adminPassword || getStoredAdminPassword());
   const [lockAdmin, setLockAdmin] = useState(config.lockAdmin !== false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);

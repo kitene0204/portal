@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+
+앱목록_백업_*.json

@@ -43,6 +43,9 @@ import {
   savePortalData, 
   subscribeToPortalData,
   isSupabaseConfigured,
+  getStoredAdminPassword,
+  clearStoredAdminPassword,
+  safeSaveToLocalStorage,
   SQL_CREATION_SCRIPT 
 } from './lib/supabase';
 import { compressImageFile, purgeLargeThumbnails, uploadThumbnailFile, findSiteIcon } from './lib/imageUtils';
@@ -77,8 +80,7 @@ export default function App() {
   // Admin Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('vibe_portal_admin_auth') === 'true' || 
-             sessionStorage.getItem('vibe_portal_admin_auth') === 'true';
+      return !!getStoredAdminPassword();
     } catch {
       return false;
     }
@@ -89,15 +91,18 @@ export default function App() {
   const [passwordModalDesc, setPasswordModalDesc] = useState<string>('포털 설정 및 웹앱 관리를 위해 관리자 비밀번호를 입력해 주세요.');
   const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
 
+  // 창고(Supabase)에 연결돼 있으면 항상 잠금 (저장은 창고가 비밀번호를 확인)
+  const isAdminLocked = isSupabaseConfigured() || data.config.lockAdmin !== false;
+
   // Helper to guard admin actions
   const requireAdmin = (action: () => void, title?: string, desc?: string) => {
-    // If lockAdmin is explicitly disabled or password is empty, permit immediately
-    if (data.config.lockAdmin === false || !data.config.adminPassword) {
+    // 잠금을 끈 경우는 창고 연결이 없는 로컬 모드에서만 바로 통과
+    if (!isAdminLocked) {
       action();
       return;
     }
 
-    if (isAdminAuthenticated) {
+    if (isAdminAuthenticated && getStoredAdminPassword()) {
       action();
     } else {
       if (title) setPasswordModalTitle(title);
@@ -118,10 +123,7 @@ export default function App() {
 
   const handleAdminLock = () => {
     setIsAdminAuthenticated(false);
-    try {
-      localStorage.removeItem('vibe_portal_admin_auth');
-      sessionStorage.removeItem('vibe_portal_admin_auth');
-    } catch {}
+    clearStoredAdminPassword();
     setShowSettings(false);
   };
 
@@ -238,7 +240,7 @@ export default function App() {
   }, []);
 
   const handleCatDragStart = (e: React.DragEvent, id: string) => {
-    if (data.config.lockAdmin !== false && !isAdminAuthenticated) {
+    if (isAdminLocked && !isAdminAuthenticated) {
       e.preventDefault();
       requireAdmin(() => {}, '카테고리 순서 변경', '카테고리 순서를 변경하려면 관리자 비밀번호를 입력해 주세요.');
       return;
@@ -462,7 +464,7 @@ export default function App() {
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
-    if (data.config.lockAdmin !== false && !isAdminAuthenticated) {
+    if (isAdminLocked && !isAdminAuthenticated) {
       e.preventDefault();
       requireAdmin(() => {}, '웹앱 순서 변경', '웹앱 카드의 우선순위를 변경하려면 관리자 비밀번호를 입력해 주세요.');
       return;
@@ -671,6 +673,11 @@ export default function App() {
       config: newConfig
     };
     setData(newData);
+    // 관리자가 아니면 이 기기 화면에만 적용 (모두의 포털은 바꾸지 않음)
+    if (isAdminLocked && !getStoredAdminPassword()) {
+      safeSaveToLocalStorage(newData);
+      return;
+    }
     setSyncStatus('syncing');
     try {
       const result = await savePortalData(newData);
@@ -1163,7 +1170,7 @@ export default function App() {
             </button>
 
             {/* Admin status toggle if authenticated */}
-            {data.config.lockAdmin !== false && isAdminAuthenticated && (
+            {isAdminLocked && isAdminAuthenticated && (
               <button
                 onClick={handleAdminLock}
                 title="관리자 모드 잠그기 (방문자 화면 테스트)"
@@ -1190,7 +1197,7 @@ export default function App() {
               id="settings-trigger-btn"
               className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer transition-all duration-300 ${activeTheme.primaryBtn}`}
             >
-              {data.config.lockAdmin !== false && !isAdminAuthenticated ? (
+              {isAdminLocked && !isAdminAuthenticated ? (
                 <Lock className="w-3.5 h-3.5" />
               ) : (
                 <Settings className="w-4 h-4" />
@@ -2225,7 +2232,7 @@ export default function App() {
           setPendingAdminAction(null);
         }}
         onSuccess={handleAdminAuthSuccess}
-        expectedPassword={config.adminPassword || '1234'}
+        expectedPassword={isSupabaseConfigured() ? undefined : (config.adminPassword || '1234')}
         title={passwordModalTitle}
         description={passwordModalDesc}
       />
