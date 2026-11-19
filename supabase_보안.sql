@@ -115,6 +115,71 @@ create policy "portal thumbs upload" on storage.objects
 for insert to anon, authenticated
 with check (bucket_id = 'portal-thumbs');
 
+-- 9. 클로드 편집 허용 (관리자가 설정창에서 정한 시간 동안만, 클로드 전용 열쇠로 저장 가능)
+alter table public.vibe_portal_secret add column if not exists helper_key_hash text;
+alter table public.vibe_portal_secret add column if not exists helper_open_until timestamptz;
+
+create or replace function public.portal_helper_status()
+returns timestamptz
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case when helper_open_until > now() then helper_open_until else null end
+  from public.vibe_portal_secret where id = 'global';
+$$;
+
+create or replace function public.portal_helper_open(pw text, minutes integer)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare result timestamptz;
+begin
+  if not public.portal_check_password(pw) then
+    raise exception '관리자 비밀번호가 맞지 않습니다' using errcode = '28P01';
+  end if;
+  update public.vibe_portal_secret
+    set helper_open_until = case when minutes > 0
+      then now() + make_interval(mins => least(minutes, 1440)) else null end
+    where id = 'global'
+    returning helper_open_until into result;
+  return result;
+end;
+$$;
+
+create or replace function public.portal_helper_save(helper_key text, new_config jsonb, new_apps jsonb)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not exists (
+    select 1 from public.vibe_portal_secret
+    where id = 'global'
+      and helper_open_until > now()
+      and helper_key_hash is not null
+      and helper_key_hash = extensions.crypt(coalesce(helper_key, ''), helper_key_hash)
+  ) then
+    raise exception '클로드 편집이 닫혀 있거나 열쇠가 맞지 않습니다' using errcode = '28P01';
+  end if;
+  update public.vibe_portal_data
+    set config = new_config - 'adminPassword', apps = new_apps, updated_at = now()
+    where id = 'global';
+  return true;
+end;
+$$;
+
+revoke all on function public.portal_helper_status() from public;
+revoke all on function public.portal_helper_open(text, integer) from public;
+revoke all on function public.portal_helper_save(text, jsonb, jsonb) from public;
+grant execute on function public.portal_helper_status() to anon, authenticated;
+grant execute on function public.portal_helper_open(text, integer) to anon, authenticated;
+grant execute on function public.portal_helper_save(text, jsonb, jsonb) to anon, authenticated;
+
 -- 확인: 아래 결과가 true 한 줄이면 성공
 select not exists (
   select 1 from public.vibe_portal_data where id = 'global' and config ? 'adminPassword'

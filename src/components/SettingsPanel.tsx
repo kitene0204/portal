@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { compressImageFile, purgeLargeThumbnails, uploadThumbnailFile, findSiteIcon } from '../lib/imageUtils';
 import { getStoredAdminPassword } from '../lib/supabase';
+import ClaudeAccessBox from './ClaudeAccessBox';
 import { 
   X, 
   Plus, 
@@ -1046,6 +1047,8 @@ export default function SettingsPanel({
                 })}
               </div>
             </div>
+
+            <ClaudeAccessBox />
 
             {/* Admin Security & Password Lock Section */}
             <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/10 space-y-3.5">

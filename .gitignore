@@ -8,3 +8,4 @@ coverage/
 !.env.example
 
 앱목록_백업_*.json
+수파베이스_실행용.sql
